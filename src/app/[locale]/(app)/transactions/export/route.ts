@@ -45,8 +45,13 @@ export async function GET(request: NextRequest) {
 
   const rows = transactions.map((tx) => {
     const parts = (tx.description ?? '').split(' | ');
-    const kursStr = parts.find((p) => p.startsWith('Kurs:')) ?? '';
-    const kurs = kursStr ? Number(kursStr.match(/=\s*([\d.]+)/)?.[1] ?? '') || '' : '';
+    // eski tranzaksiyalar uchun description dan fallback
+    const legacyRate = parts.find((p) => p.startsWith('Kurs:'));
+    const kurs = tx.rate
+      ? Number(tx.rate)
+      : legacyRate
+        ? Number(legacyRate.match(/=\s*([\d.]+)/)?.[1] ?? '') || ''
+        : '';
     const izoh = parts.filter((p) => !p.startsWith('Kurs:')).join(' | ');
 
     return {

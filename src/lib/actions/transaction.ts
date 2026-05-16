@@ -35,7 +35,7 @@ export async function addTransaction(_: TransactionState, formData: FormData): P
     if (!toWallet) return { error: 'Qabul qiluvchi hamyon topilmadi' };
 
     let toAmount = amount;
-    let rateNote: string | null = null;
+    let savedRate: number | null = null;
 
     if (wallet.currency !== toWallet.currency) {
       const rate = parseFloat(formData.get('rate') as string);
@@ -45,14 +45,11 @@ export async function addTransaction(_: TransactionState, formData: FormData): P
       const toRank = CURRENCY_RANK[toWallet.currency] ?? 1;
 
       if (fromRank >= toRank) {
-        // Kuchliroq valyutadan zaifroqqa (masalan USD → UZS): miqdor * kurs
         toAmount = amount * rate;
-        rateNote = `Kurs: 1 ${wallet.currency} = ${rate} ${toWallet.currency}`;
       } else {
-        // Zaifroqdan kuchliroqqa (masalan UZS → USD): miqdor / kurs
         toAmount = amount / rate;
-        rateNote = `Kurs: 1 ${toWallet.currency} = ${rate} ${wallet.currency}`;
       }
+      savedRate = rate;
     }
 
     await prisma.$transaction([
@@ -66,7 +63,8 @@ export async function addTransaction(_: TransactionState, formData: FormData): P
           currency: wallet.currency,
           toAmount: wallet.currency !== toWallet.currency ? toAmount : null,
           toCurrency: wallet.currency !== toWallet.currency ? toWallet.currency : null,
-          description: [description, rateNote].filter(Boolean).join(' | ') || null,
+          rate: savedRate,
+          description: description || null,
         },
       }),
       prisma.wallet.update({

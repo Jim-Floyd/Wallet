@@ -130,9 +130,11 @@ export default async function TransactionsPage({
                           : `${tx.wallet.name} (${tx.currency})`}
                         {' • '}{formatDate(tx.date)}
                       </p>
-                      {isTransfer && tx.description?.includes('Kurs:') && (
+                      {isTransfer && (tx.rate || tx.description?.includes('Kurs:')) && (
                         <p className="text-xs text-muted-foreground">
-                          {tx.description.split(' | ').find(p => p.startsWith('Kurs:'))}
+                          {tx.rate
+                            ? `Kurs: ${Number(tx.rate)}`
+                            : tx.description?.split(' | ').find(p => p.startsWith('Kurs:'))}
                         </p>
                       )}
                     </div>

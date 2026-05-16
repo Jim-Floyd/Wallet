@@ -55,6 +55,7 @@ model Transaction {
   currency     String          @default("UZS")
   toAmount     Decimal?        @db.Decimal(15, 2)
   toCurrency   String?
+  rate         Decimal?        @db.Decimal(15, 6)
   category     String?
   description  String?
   date         DateTime        @default(now())
