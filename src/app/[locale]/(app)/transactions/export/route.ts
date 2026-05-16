@@ -43,18 +43,25 @@ export async function GET(request: NextRequest) {
 
   const fmt = new Intl.DateTimeFormat('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const rows = transactions.map((tx) => ({
-    'Sana': fmt.format(tx.date),
-    'Tur': TYPE_LABELS[tx.type] ?? tx.type,
-    'Hamyon': tx.wallet.name,
-    'Miqdor': Number(tx.amount),
-    'Valyuta': tx.currency,
-    'Kategoriya': tx.category ?? '',
-    'Izoh': tx.description?.replace(/\s*\|\s*Kurs:.*$/, '') ?? '',
-    "Qabul hamyon": tx.toWallet?.name ?? '',
-    "O'tkazma miqdori": tx.toAmount ? Number(tx.toAmount) : '',
-    "O'tkazma valyutasi": tx.toCurrency ?? '',
-  }));
+  const rows = transactions.map((tx) => {
+    const parts = (tx.description ?? '').split(' | ');
+    const kurs = parts.find((p) => p.startsWith('Kurs:')) ?? '';
+    const izoh = parts.filter((p) => !p.startsWith('Kurs:')).join(' | ');
+
+    return {
+      'Sana': fmt.format(tx.date),
+      'Tur': TYPE_LABELS[tx.type] ?? tx.type,
+      'Hamyon': tx.wallet.name,
+      'Miqdor': Number(tx.amount),
+      'Valyuta': tx.currency,
+      'Kategoriya': tx.category ?? '',
+      'Izoh': izoh,
+      'Valyuta kursi': kurs,
+      "Qabul hamyon": tx.toWallet?.name ?? '',
+      "O'tkazma miqdori": tx.toAmount ? Number(tx.toAmount) : '',
+      "O'tkazma valyutasi": tx.toCurrency ?? '',
+    };
+  });
 
   const ws = XLSX.utils.json_to_sheet(rows);
 
