@@ -45,7 +45,8 @@ export async function GET(request: NextRequest) {
 
   const rows = transactions.map((tx) => {
     const parts = (tx.description ?? '').split(' | ');
-    const kurs = parts.find((p) => p.startsWith('Kurs:')) ?? '';
+    const kursStr = parts.find((p) => p.startsWith('Kurs:')) ?? '';
+    const kurs = kursStr ? Number(kursStr.match(/=\s*([\d.]+)/)?.[1] ?? '') || '' : '';
     const izoh = parts.filter((p) => !p.startsWith('Kurs:')).join(' | ');
 
     return {
