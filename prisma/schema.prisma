@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id  // Supabase auth.users UUID
+  email         String?   @unique
+  phone         String?   @unique
+  name          String?
+  avatarUrl     String?
+  locale        String    @default("uz")
+  currency      String    @default("UZS")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  wallets       Wallet[]
+  transactions  Transaction[]
+  categories    Category[]
+  budgets       Budget[]
+  goals         Goal[]
+  referrals     Referral[]    @relation("referrer")
+  referredBy    Referral?     @relation("referred")
+}
+
+model Wallet {
+  id           String          @id @default(cuid())
+  userId       String
+  name         String
+  balance      Decimal         @default(0) @db.Decimal(15, 2)
+  currency     String          @default("UZS")
+  cardNumber   String?
+  color        String?
+  icon         String?
+  isDefault    Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromTransactions Transaction[] @relation("fromWallet")
+  toTransactions   Transaction[] @relation("toWallet")
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  userId       String
+  walletId     String
+  toWalletId   String?
+  type         TransactionType
+  amount       Decimal         @db.Decimal(15, 2)
+  currency     String          @default("UZS")
+  toAmount     Decimal?        @db.Decimal(15, 2)
+  toCurrency   String?
+  category     String?
+  description  String?
+  date         DateTime        @default(now())
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet       Wallet          @relation("fromWallet", fields: [walletId], references: [id])
+  toWallet     Wallet?         @relation("toWallet", fields: [toWalletId], references: [id])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+}
+
+model Budget {
+  id           String   @id @default(cuid())
+  userId       String
+  category     String
+  amount       Decimal  @db.Decimal(15, 2)
+  currency     String   @default("UZS")
+  month        Int
+  year         Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  targetAmount  Decimal  @db.Decimal(15, 2)
+  currentAmount Decimal  @default(0) @db.Decimal(15, 2)
+  currency      String   @default("UZS")
+  deadline      DateTime?
+  icon          String?
+  color         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Referral {
+  id           String   @id @default(cuid())
+  referrerId   String
+  referredId   String   @unique
+  code         String   @unique
+  createdAt    DateTime @default(now())
+
+  referrer     User     @relation("referrer", fields: [referrerId], references: [id])
+  referred     User     @relation("referred", fields: [referredId], references: [id])
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
