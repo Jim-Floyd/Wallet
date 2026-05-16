@@ -6,6 +6,7 @@ import { ArrowUpRight, ArrowDownRight, ArrowLeftRight } from 'lucide-react';
 import { AddTransactionDialog } from '@/components/dashboard/add-transaction-dialog';
 import { TransactionFilters } from '@/components/transactions/transaction-filters';
 import { Pagination } from '@/components/transactions/pagination';
+import { ExportButton } from '@/components/transactions/export-button';
 import { Suspense } from 'react';
 
 const PAGE_SIZE = 20;
@@ -76,10 +77,13 @@ export default async function TransactionsPage({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Tranzaksiyalar</h1>
-        <AddTransactionDialog
-          wallets={walletList}
-          savedCategories={categories.map(c => ({ id: c.id, name: c.name }))}
-        />
+        <div className="flex items-center gap-2">
+          <ExportButton locale={locale} filters={filters} />
+          <AddTransactionDialog
+            wallets={walletList}
+            savedCategories={categories.map(c => ({ id: c.id, name: c.name }))}
+          />
+        </div>
       </div>
 
       <Suspense>
