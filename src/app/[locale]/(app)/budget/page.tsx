@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { processRecurring } from '@/lib/recurring-server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,6 +33,7 @@ export default async function BudgetPage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/${locale}/auth/login`);
+  await processRecurring(user.id);
 
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 0, 23, 59, 59);

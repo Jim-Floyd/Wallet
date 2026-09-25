@@ -81,7 +81,7 @@ Translation files: `messages/uz.json`, `messages/ru.json`, `messages/en.json`. U
 
 ## Current State & Next Work
 
-_Last updated: 2026-05-16 (Sessiya 16)_
+_Last updated: 2026-09-24 (Sessiya 17)_
 
 ### Completed (ishlaydi)
 
@@ -89,16 +89,23 @@ _Last updated: 2026-05-16 (Sessiya 16)_
 |------|---------|-------|
 | Auth (email/password + phone OTP) | `src/lib/actions/auth.ts`, `src/components/auth/` | `createUserWithWallet` login va verifyPhoneOtp da chaqiriladi |
 | Dashboard page | `src/app/[locale]/(app)/dashboard/page.tsx` | Multi-currency balance, oylik kirim/chiqim, so'nggi 5 tranzaksiya |
-| Wallets page (CRUD) | `src/app/[locale]/(app)/wallets/page.tsx` | To'liq: ro'yxat, edit dialog, delete (default hamyon himoyalangan) |
-| Transactions page | `src/app/[locale]/(app)/transactions/page.tsx` | Filtrlash (tur/hamyon/sana), pagination (PAGE_SIZE=20), AddTransactionDialog |
+| Wallets page | `src/app/[locale]/(app)/wallets/page.tsx` | Ro'yxat, `EditWalletDialog` (nom/rang/belgi), tasdiqlab o'chirish (default hamyon himoyalangan) |
+| Takrorlanuvchi kirim/chiqim | `src/lib/recurring.ts`, `src/lib/recurring-server.ts`, `RecurringRule` modeli | TransactionDialog'da "Takrorlash". Cron yo'q: `processRecurring(userId)` ma'lumot ko'rsatadigan sahifalar (dashboard, transactions, wallets, budget, export) boshida chaqiriladi va o'tib ketgan takrorlarni to'ldiradi. n-takror har doim `startDate` dan hisoblanadi. Yangi sahifa balans/tranzaksiya ko'rsatsa — unga ham qo'shing |
+| Kunlik guruhlash | `src/lib/days.ts` | Kunlar `Asia/Tashkent` bo'yicha; Tranzaksiyalar sahifasida kun sarlavhasi + kunlik jami/sof natija |
+| Kategoriya belgilari | `src/lib/category-icons.ts`, `src/components/transactions/tx-icon.tsx` | Standart kategoriyalar — qat'iy xarita; qo'lda qo'shilganlar — `Category.icon` (AddCategoryDialog'da tanlanadi); belgisizlar — nomdan kalit so'z bo'yicha taxmin; topilmasa — yo'nalish strelkasi |
+| Hamyon belgilari | `src/lib/wallet-icons.ts`, `src/components/wallets/wallet-avatar.tsx`, `wallet-style-fields.tsx` | `Wallet.icon` da lucide kalit (masalan `credit-card`); null — valyuta bayrog'i. Server faqat `WALLET_ICON_KEYS` dagini saqlaydi |
+| Transactions page | `src/app/[locale]/(app)/transactions/page.tsx` | Filtrlash, pagination (PAGE_SIZE=20), har qatorda edit/delete, Excel eksport |
 | TransactionFilters | `src/components/transactions/transaction-filters.tsx` | URL search params orqali, `page` resetlanadi |
 | Pagination | `src/components/transactions/pagination.tsx` | `...` truncation, URL params orqali |
 | AddWalletDialog | `src/components/dashboard/add-wallet-dialog.tsx` | Valyuta tanlash (UZS/USD/EUR/RUB), rang tanlash |
-| EditWalletDialog | `src/components/wallets/edit-wallet-dialog.tsx` | name + color edit |
-| AddTransactionDialog | `src/components/dashboard/add-transaction-dialog.tsx` | Income/Expense/Transfer; cross-currency conversion; AddCategoryDialog integratsiyasi |
+| TransactionDialog | `src/components/transactions/transaction-dialog.tsx` | Add + edit (`transaction` prop). Income/Expense/Transfer, sana tanlash, cross-currency; tahrirlashda tur o'zgarmaydi |
+| ConfirmDeleteButton | `src/components/confirm-delete-button.tsx` | Umumiy tasdiqlash dialogi, `(state, formData)` action qabul qiladi |
 | AddCategoryDialog | `src/components/categories/add-category-dialog.tsx` | Alohida modal, `onCreated` callback |
-| `addWallet` / `deleteWallet` / `updateWallet` | `src/lib/actions/wallet.ts` | To'liq CRUD |
-| `addTransaction` | `src/lib/actions/transaction.ts` | Atomic balance update; cross-currency `toAmount`/`toCurrency` |
+| `addWallet` / `deleteWallet` / `updateWallet` | `src/lib/actions/wallet.ts` | `deleteWallet`: kirim/chiqimlar birga o'chadi; o'tkazmasi bor hamyon o'chirilmaydi |
+| `addTransaction` / `updateTransaction` / `deleteTransaction` | `src/lib/actions/transaction.ts` | `balanceEffects()` — eski ta'sirni teskari qilib, yangisini qo'llaydi, hammasi bitta `$transaction` da |
+| Debts (Qarzlar) | `src/app/[locale]/(app)/debts/page.tsx`, `src/lib/actions/debt.ts`, `src/lib/debt.ts` | Berish/olish, qisman qaytarish, muddat, ochiq/yopilgan. Hamyonsiz qarz — faqat yozuv. Dashboard'da qisqa karta |
+| Settings | `src/app/[locale]/(app)/settings/page.tsx` | Profil, parol, til, chiqish |
+| Budget | `src/app/[locale]/(app)/budget/page.tsx` | Oylik kategoriya limitlari + progress |
 | `createCategory` | `src/lib/actions/category.ts` | upsert pattern (`@@unique([userId, name])`) |
 | App shell | `src/app/[locale]/(app)/layout.tsx`, `src/components/sidebar-nav.tsx` | Sidebar + header |
 | Language switcher | `src/components/language-switcher.tsx` | uz/ru/en |
@@ -107,8 +114,6 @@ _Last updated: 2026-05-16 (Sessiya 16)_
 
 | Page | File | Nima kerak |
 |------|------|-----------|
-| Settings | `src/app/[locale]/(app)/settings/page.tsx` | Profil ma'lumotlari, parol o'zgartirish |
-| Budget | `src/app/[locale]/(app)/budget/page.tsx` | Oylik xarajat limiti va progress |
 | Goals | `src/app/[locale]/(app)/goals/page.tsx` | Jamg'arma maqsadlari |
 | AI | `src/app/[locale]/(app)/ai/page.tsx` | Tranzaksiya tahlili, AI chat |
 | Billing | `src/app/[locale]/(app)/billing/page.tsx` | — |
@@ -122,7 +127,9 @@ _Last updated: 2026-05-16 (Sessiya 16)_
 - **`@/components/ui/dialog` is base-ui** — shadcn/ui Radix-based Dialog o'rniga `@base-ui/react` ishlatiladi; `asChild` yo'q, o'rniga `render` prop: `<DialogTrigger render={<Button />}>`. Import yo'li bir xil bo'lsa ham, xulq-atvor farqli.
 - **Native `<select>`** — shadch Select Dialog ichida portal/z-index muammo chiqaradi; barcha dialog formlarda native `<select>` ishlatiladi
 - **Hidden inputs for controlled values** — Dialog formalarida React state bilan boshqariladigan qiymatlar (currency, color) `<input type="hidden" name="..." value={val} />` orqali FormData ga uzatiladi
-- **Balance integrity** — balansni faqat `prisma.$transaction([create, update])` orqali yangilang
+- **Balance integrity** — balansni faqat `prisma.$transaction([create, update])` orqali yangilang; ta'sirni `src/lib/balance.ts` (`balanceEffects` / `reverseEffects` / `balanceUpdates`) hisoblaydi
+- **Qarzlar** — `DEBT_IN` / `DEBT_OUT` tranzaksiyalari `debtId` bilan bog'lanadi. Qaytarilgan summa saqlanmaydi, bog'langan tranzaksiyalardan hisoblanadi (`debtProgress`). Bu turlar oylik kirim/chiqim va budgetga kirmaydi; Tranzaksiyalar sahifasidan tahrirlanmaydi. Qaytarish faqat qarz valyutasidagi hamyon orqali
+- **Dev server + `prisma generate`** — Prisma client `globalThis` da keshlanadi; sxema o'zgargach dev serverni qayta ishga tushiring
 - **Auth pattern** — har bir Server Action: `supabase.auth.getUser()` → Prisma query `userId` bilan scope
 - **Revalidation** — mutatsiyadan keyin: `revalidatePath('/', 'layout')`
 - **Filters + Pagination** — URL search params (Server Component o'qiydi, Client Component yangilaydi); filter o'zgarganda `page` o'chiriladi

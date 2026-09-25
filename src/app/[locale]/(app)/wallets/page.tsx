@@ -1,12 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { processRecurring } from '@/lib/recurring-server';
 import { redirect } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { AddWalletDialog } from '@/components/dashboard/add-wallet-dialog';
+import { ConfirmDeleteButton } from '@/components/confirm-delete-button';
+import { EditWalletDialog } from '@/components/wallets/edit-wallet-dialog';
+import { WalletAvatar } from '@/components/wallets/wallet-avatar';
 import { deleteWallet } from '@/lib/actions/wallet';
-import { Trash2 } from 'lucide-react';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   UZS: "so'm",
@@ -28,6 +30,7 @@ export default async function WalletsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/uz/auth/login');
+  await processRecurring(user.id);
 
   const wallets = await prisma.wallet.findMany({
     where: { userId: user.id },
@@ -59,30 +62,46 @@ export default async function WalletsPage() {
               )}
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold truncate">{wallet.name}</p>
-                      {wallet.isDefault && (
-                        <Badge variant="secondary" className="text-xs shrink-0">Asosiy</Badge>
-                      )}
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <WalletAvatar
+                      icon={wallet.icon}
+                      color={wallet.color}
+                      currency={wallet.currency}
+                      className="h-11 w-11"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold truncate">{wallet.name}</p>
+                        {wallet.isDefault && (
+                          <Badge variant="secondary" className="text-xs shrink-0">Asosiy</Badge>
+                        )}
+                      </div>
+                      <p className="text-2xl font-bold mt-1 tabular-nums">
+                        {formatBalance(wallet.balance, wallet.currency)}
+                      </p>
                     </div>
-                    <p className="text-2xl font-bold mt-1 tabular-nums">
-                      {formatBalance(wallet.balance, wallet.currency)}
-                    </p>
                   </div>
-                  {!wallet.isDefault && (
-                    <form action={async (fd) => { 'use server'; await deleteWallet(null, fd); }} className="shrink-0">
-                      <input type="hidden" name="id" value={wallet.id} />
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </form>
-                  )}
+                  <div className="flex shrink-0 items-center">
+                    <EditWalletDialog
+                      wallet={{
+                        id: wallet.id,
+                        name: wallet.name,
+                        currency: wallet.currency,
+                        color: wallet.color,
+                        icon: wallet.icon,
+                        isDefault: wallet.isDefault,
+                      }}
+                    />
+                    {!wallet.isDefault && (
+                      <ConfirmDeleteButton
+                        id={wallet.id}
+                        action={deleteWallet}
+                        title="Hamyonni o'chirish"
+                        description={`"${wallet.name}" hamyoni va undagi barcha kirim/chiqim yozuvlari o'chiriladi. Bu amalni qaytarib bo'lmaydi.`}
+                        className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                      />
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -23,6 +23,8 @@ model User {
   categories    Category[]
   budgets       Budget[]
   goals         Goal[]
+  debts         Debt[]
+  recurringRules RecurringRule[]
   referrals     Referral[]    @relation("referrer")
   referredBy    Referral?     @relation("referred")
 }
@@ -43,6 +45,7 @@ model Wallet {
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   fromTransactions Transaction[] @relation("fromWallet")
   toTransactions   Transaction[] @relation("toWallet")
+  recurringRules   RecurringRule[]
 }
 
 model Transaction {
@@ -58,6 +61,8 @@ model Transaction {
   rate         Decimal?        @db.Decimal(15, 6)
   category     String?
   description  String?
+  debtId       String?
+  recurringId  String?
   date         DateTime        @default(now())
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
@@ -65,12 +70,77 @@ model Transaction {
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   wallet       Wallet          @relation("fromWallet", fields: [walletId], references: [id])
   toWallet     Wallet?         @relation("toWallet", fields: [toWalletId], references: [id])
+  debt         Debt?           @relation(fields: [debtId], references: [id])
+  recurring    RecurringRule?  @relation(fields: [recurringId], references: [id], onDelete: SetNull)
+
+  @@index([debtId])
+  @@index([recurringId])
+}
+
+// Takrorlanuvchi kirim/chiqim. Birinchi yozuv qo'shilganda yaratiladi (count = 1),
+// keyingilari nextDate kelganda processRecurring() orqali avtomatik qo'shiladi.
+// n-takror sanasi har doim startDate dan hisoblanadi — oylik takror 31-sanada "siljib" qolmaydi.
+model RecurringRule {
+  id           String             @id @default(cuid())
+  userId       String
+  walletId     String
+  type         TransactionType    // faqat INCOME yoki EXPENSE
+  amount       Decimal            @db.Decimal(15, 2)
+  currency     String
+  category     String?
+  description  String?
+  frequency    RecurringFrequency
+  startDate    DateTime
+  count        Int                @default(1) // yaratilgan takrorlar soni
+  nextDate     DateTime
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet       Wallet             @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId, nextDate])
+}
+
+enum RecurringFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+// Qarz. Qaytarilgan summa bog'langan tranzaksiyalardan hisoblanadi:
+// LENT (men berdim):     boshlang'ich = DEBT_OUT, qaytarish = DEBT_IN
+// BORROWED (men oldim):  boshlang'ich = DEBT_IN,  qaytarish = DEBT_OUT
+model Debt {
+  id           String        @id @default(cuid())
+  userId       String
+  type         DebtType
+  person       String
+  phone        String?
+  amount       Decimal       @db.Decimal(15, 2)
+  currency     String        @default("UZS")
+  date         DateTime      @default(now())
+  dueDate      DateTime?
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
+
+enum DebtType {
+  LENT
+  BORROWED
 }
 
 model Category {
   id        String   @id @default(cuid())
   userId    String
   name      String
+  icon      String?  // src/lib/category-icons.ts dagi kalit
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -123,4 +193,6 @@ enum TransactionType {
   INCOME
   EXPENSE
   TRANSFER
+  DEBT_IN   // qarz olindi yoki qarz qaytarildi — hamyonga kiradi
+  DEBT_OUT  // qarz berildi yoki qarz to'landi — hamyondan chiqadi
 }

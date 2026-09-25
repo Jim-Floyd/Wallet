@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { processRecurring } from '@/lib/recurring-server';
 import * as XLSX from 'xlsx';
+import { debtTxLabel, txTypeWhere } from '@/lib/debt';
 
 const TYPE_LABELS: Record<string, string> = {
   INCOME: 'Daromad',
   EXPENSE: 'Xarajat',
   TRANSFER: "O'tkazma",
+  DEBT_IN: 'Qarz (kirim)',
+  DEBT_OUT: 'Qarz (chiqim)',
 };
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  await processRecurring(user.id);
 
   const sp = request.nextUrl.searchParams;
   const type = sp.get('type');
@@ -22,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   const where = {
     userId: user.id,
-    ...(type && { type: type as 'INCOME' | 'EXPENSE' | 'TRANSFER' }),
+    ...txTypeWhere(type),
     ...(walletId && { walletId }),
     ...((from || to) && {
       date: {
@@ -38,6 +43,7 @@ export async function GET(request: NextRequest) {
     include: {
       wallet: { select: { name: true } },
       toWallet: { select: { name: true } },
+      debt: { select: { type: true, person: true } },
     },
   });
 
@@ -60,7 +66,7 @@ export async function GET(request: NextRequest) {
       'Hamyon': tx.wallet.name,
       'Miqdor': Number(tx.amount),
       'Valyuta': tx.currency,
-      'Kategoriya': tx.category ?? '',
+      'Kategoriya': tx.debt ? debtTxLabel(tx.type, tx.debt) : tx.category ?? '',
       'Izoh': izoh,
       'Valyuta kursi': kurs,
       "Qabul hamyon": tx.toWallet?.name ?? '',

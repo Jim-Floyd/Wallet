@@ -91,7 +91,7 @@ export function BudgetDialog({ month, year, categories, budget }: Props) {
               name="amount"
               type="number"
               min="0"
-              step="1000"
+              step="0.01"
               defaultValue={budget?.amount ?? ''}
               required
             />

@@ -11,6 +11,7 @@ const TYPES = [
   { value: 'EXPENSE', label: 'Xarajat' },
   { value: 'INCOME', label: 'Daromad' },
   { value: 'TRANSFER', label: "O'tkazma" },
+  { value: 'DEBT', label: 'Qarz' },
 ];
 
 export function TransactionFilters({ wallets }: { wallets: Wallet[] }) {
