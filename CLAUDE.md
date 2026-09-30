@@ -46,6 +46,8 @@ The Prisma client is generated into `src/generated/prisma/` (non-standard output
 - `DIRECT_URL` — direct connection (port 5432) — used by `prisma.config.ts` for migrations/push
 - `NEXT_PUBLIC_APP_URL` — full app URL (e.g. `http://localhost:3000`) — used in email redirect links
 
+**`.env` is committed encrypted (dotenvx).** `npm run dev/build/start` wrap Next with `dotenvx run`, and `prisma.config.ts` imports `@dotenvx/dotenvx/config`. The private key lives in `.env.keys` (gitignored) or the `DOTENV_PRIVATE_KEY` env var. Change values with `npx dotenvx set KEY value` — never paste plaintext into `.env`. Ad-hoc scripts must run under `npx dotenvx run --` (plain `dotenv` sees only `encrypted:` strings).
+
 After editing `prisma/schema.prisma`, run `npx prisma generate` before `npx prisma db push`.
 
 ### Auth

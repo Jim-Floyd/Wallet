@@ -1,4 +1,5 @@
-import "dotenv/config";
+// .env shifrlangan (dotenvx) — .env.keys yoki DOTENV_PRIVATE_KEY orqali ochiladi
+import "@dotenvx/dotenvx/config";
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "dotenvx run --strict --no-armor -- next dev",
+    "build": "dotenvx run --strict --no-armor -- next build",
+    "start": "dotenvx run --strict --no-armor -- next start",
     "lint": "next lint"
   },
   "dependencies": {
@@ -32,6 +32,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^2.32.2",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

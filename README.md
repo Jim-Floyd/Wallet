@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hamyon
 
-## Getting Started
+Shaxsiy moliya ilovasi: hamyonlar, tranzaksiyalar, qarzlar, byudjet, takrorlanuvchi to'lovlar.
+Next.js 14 · Supabase · Prisma · next-intl (uz / ru / en).
 
-First, run the development server:
+## Yangi qurilmada ishga tushirish
+
+`.env` fayli repoda **shifrlangan** holda saqlanadi ([dotenvx](https://dotenvx.com)). Uni ochish uchun faqat
+bitta maxfiy kalit kerak — `DOTENV_PRIVATE_KEY`. U gitda yo'q; parol menejeringizda saqlang.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/Jim-Floyd/Wallet.git
+cd Wallet
+npm install
+npx prisma generate
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Keyin kalitni **bittasi** bilan bering:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 1-usul: loyiha papkasida .env.keys fayli (gitignore'da)
+echo DOTENV_PRIVATE_KEY=<kalit> > .env.keys
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 2-usul: tizim muhit o'zgaruvchisi (Windows PowerShell, bir marta)
+setx DOTENV_PRIVATE_KEY "<kalit>"
+```
 
-## Learn More
+```bash
+npm run dev   # http://localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+Kalit topilmasa, `npm run dev` `DECRYPTION_FAILED` xatosi bilan to'xtaydi.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## .env ni o'zgartirish
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Qiymatni qo'lda tahrirlamang — shifrlab yozing, keyin commit qiling:
 
-## Deploy on Vercel
+```bash
+npx dotenvx set GOOGLE_AI_API_KEY "yangi-qiymat"    # qo'shish / o'zgartirish
+npx dotenvx get NEXT_PUBLIC_APP_URL                 # bitta qiymatni ko'rish
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Kerakli o'zgaruvchilar ro'yxati — `.env.example`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Buyruqlar
+
+```bash
+npm run dev          # dev server (.env avtomatik ochiladi)
+npm run build        # production build
+npm run lint
+npx prisma db push   # sxemani bazaga yuborish (prisma.config.ts ham .env ni o'zi ochadi)
+```

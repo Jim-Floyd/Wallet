@@ -27,7 +27,8 @@ yarn-error.log*
 
 # local env files
 .env*.local
-.env
+# .env is committed ENCRYPTED (dotenvx); the private key must never be committed
+.env.keys
 
 # vercel
 .vercel
