@@ -8,24 +8,25 @@ Next.js 14 · Supabase · Prisma · next-intl (uz / ru / en).
 `.env` fayli repoda **shifrlangan** holda saqlanadi ([dotenvx](https://dotenvx.com)). Uni ochish uchun faqat
 bitta maxfiy kalit kerak — `DOTENV_PRIVATE_KEY`. U gitda yo'q; parol menejeringizda saqlang.
 
+Kerak: Node.js 20+ va Git.
+
 ```bash
 git clone https://github.com/Jim-Floyd/Wallet.git
 cd Wallet
-npm install
-npx prisma generate
 ```
 
-Keyin kalitni **bittasi** bilan bering:
+Kalitni **bittasi** bilan bering (`npm install` dan oldin):
 
 ```bash
 # 1-usul: loyiha papkasida .env.keys fayli (gitignore'da)
 echo DOTENV_PRIVATE_KEY=<kalit> > .env.keys
 
-# 2-usul: tizim muhit o'zgaruvchisi (Windows PowerShell, bir marta)
+# 2-usul: tizim muhit o'zgaruvchisi (Windows PowerShell, bir marta, keyin terminalni qayta oching)
 setx DOTENV_PRIVATE_KEY "<kalit>"
 ```
 
 ```bash
+npm install   # Prisma client ham avtomatik yaratiladi (postinstall)
 npm run dev   # http://localhost:3000
 ```
 

@@ -6,7 +6,8 @@
     "dev": "dotenvx run --strict --no-armor -- next dev",
     "build": "dotenvx run --strict --no-armor -- next build",
     "start": "dotenvx run --strict --no-armor -- next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
