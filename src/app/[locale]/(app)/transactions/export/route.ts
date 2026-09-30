@@ -4,16 +4,15 @@ import { prisma } from '@/lib/prisma';
 import { processRecurring } from '@/lib/recurring-server';
 import * as XLSX from 'xlsx';
 import { debtTxLabel, txTypeWhere } from '@/lib/debt';
+import { getTranslations } from 'next-intl/server';
+import { formatDay } from '@/lib/days';
+import { categoryName } from '@/lib/category-icons';
 
-const TYPE_LABELS: Record<string, string> = {
-  INCOME: 'Daromad',
-  EXPENSE: 'Xarajat',
-  TRANSFER: "O'tkazma",
-  DEBT_IN: 'Qarz (kirim)',
-  DEBT_OUT: 'Qarz (chiqim)',
-};
-
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'export' });
+  const tDebt = await getTranslations({ locale, namespace: 'debts' });
+  const tCat = await getTranslations({ locale, namespace: 'defaultCategories' });
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -47,8 +46,6 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  const fmt = new Intl.DateTimeFormat('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' });
-
   const rows = transactions.map((tx) => {
     const parts = (tx.description ?? '').split(' | ');
     // eski tranzaksiyalar uchun description dan fallback
@@ -61,17 +58,17 @@ export async function GET(request: NextRequest) {
     const izoh = parts.filter((p) => !p.startsWith('Kurs:')).join(' | ');
 
     return {
-      'Sana': fmt.format(tx.date),
-      'Tur': TYPE_LABELS[tx.type] ?? tx.type,
-      'Hamyon': tx.wallet.name,
-      'Miqdor': Number(tx.amount),
-      'Valyuta': tx.currency,
-      'Kategoriya': tx.debt ? debtTxLabel(tx.type, tx.debt) : tx.category ?? '',
-      'Izoh': izoh,
-      'Valyuta kursi': kurs,
-      "Qabul hamyon": tx.toWallet?.name ?? '',
-      "O'tkazma miqdori": tx.toAmount ? Number(tx.toAmount) : '',
-      "O'tkazma valyutasi": tx.toCurrency ?? '',
+      [t('date')]: formatDay(tx.date, locale),
+      [t('type')]: t(`types.${tx.type}`),
+      [t('wallet')]: tx.wallet.name,
+      [t('amount')]: Number(tx.amount),
+      [t('currency')]: tx.currency,
+      [t('category')]: tx.debt ? debtTxLabel(tx.type, tx.debt, tDebt) : tx.category ? categoryName(tx.category, tCat) : '',
+      [t('note')]: izoh,
+      [t('rate')]: kurs,
+      [t('toWallet')]: tx.toWallet?.name ?? '',
+      [t('toAmount')]: tx.toAmount ? Number(tx.toAmount) : '',
+      [t('toCurrency')]: tx.toCurrency ?? '',
     };
   });
 
@@ -82,7 +79,7 @@ export async function GET(request: NextRequest) {
   }
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Tranzaksiyalar');
+  XLSX.utils.book_append_sheet(wb, ws, t('sheetName'));
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   const date = new Date().toISOString().slice(0, 10);

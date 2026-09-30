@@ -4,6 +4,7 @@ import { Bot } from 'lucide-react';
 
 export default async function AiPage() {
   const t = await getTranslations('nav');
+  const tc = await getTranslations('common');
 
   return (
     <div className="space-y-6">
@@ -13,11 +14,11 @@ export default async function AiPage() {
         <CardHeader className="border-b">
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
-            AI Moliyaviy Yordamchi
+            {tc('aiAssistant')}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-1 items-center justify-center">
-          <p className="text-muted-foreground">AI yordamchi tez orada ishga tushadi...</p>
+          <p className="text-muted-foreground">{tc('comingSoon')}</p>
         </CardContent>
       </Card>
     </div>

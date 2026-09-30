@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { processRecurring } from '@/lib/recurring-server';
+import { getTranslations } from 'next-intl/server';
+import { formatMoney } from '@/lib/intl';
+import { categoryName } from '@/lib/category-icons';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,9 +13,6 @@ import { deleteBudgetAction } from '@/lib/actions/budget';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 
-function formatAmount(n: number, currency: string) {
-  return `${new Intl.NumberFormat('uz-UZ').format(n)} ${currency}`;
-}
 
 type SearchParams = { month?: string; year?: string };
 
@@ -34,6 +34,9 @@ export default async function BudgetPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/${locale}/auth/login`);
   await processRecurring(user.id);
+  const t = await getTranslations('budget');
+  const tCat = await getTranslations('defaultCategories');
+  const formatAmount = (n: number, currency: string) => formatMoney(n, currency, locale);
 
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 0, 23, 59, 59);
@@ -71,7 +74,7 @@ export default async function BudgetPage({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Byudjet</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <BudgetDialog month={month} year={year} categories={categoryNames} />
       </div>
 
@@ -82,7 +85,7 @@ export default async function BudgetPage({
       {budgets.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            Bu oy uchun byudjet belgilanmagan
+            {t('empty')}
           </CardContent>
         </Card>
       ) : (
@@ -104,12 +107,12 @@ export default async function BudgetPage({
                 <CardContent className="pt-4 pb-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-semibold">{b.category}</p>
+                      <p className="font-semibold">{categoryName(b.category, tCat)}</p>
                       <p className={`text-sm ${over ? 'text-red-600' : 'text-muted-foreground'}`}>
                         {formatAmount(spent, b.currency)}
                         {' / '}
                         {formatAmount(limit, b.currency)}
-                        {over && ' — limit oshib ketdi!'}
+                        {over && ` — ${t('overLimit')}`}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0 ml-2">

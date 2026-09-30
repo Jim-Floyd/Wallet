@@ -8,6 +8,7 @@ import { PasswordForm } from '@/components/settings/password-form';
 import { logout } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 
 export default async function SettingsPage({
   params,
@@ -15,6 +16,7 @@ export default async function SettingsPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const t = await getTranslations('settings');
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,11 +30,11 @@ export default async function SettingsPage({
 
   return (
     <div className="space-y-6 max-w-lg">
-      <h1 className="text-2xl font-bold">Sozlamalar</h1>
+      <h1 className="text-2xl font-bold">{t('title')}</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle>Profil</CardTitle>
+          <CardTitle>{t('profile')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ProfileForm name={name} email={email} currency={currency} />
@@ -42,7 +44,7 @@ export default async function SettingsPage({
       {user.app_metadata?.provider === 'email' && (
         <Card>
           <CardHeader>
-            <CardTitle>Parol</CardTitle>
+            <CardTitle>{t('password')}</CardTitle>
           </CardHeader>
           <CardContent>
             <PasswordForm />
@@ -52,7 +54,7 @@ export default async function SettingsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Til</CardTitle>
+          <CardTitle>{t('language')}</CardTitle>
         </CardHeader>
         <CardContent>
           <LanguageSwitcher />
@@ -64,7 +66,7 @@ export default async function SettingsPage({
           <form action={logout.bind(null, locale)}>
             <Button type="submit" variant="destructive" className="w-full">
               <LogOut className="mr-2 h-4 w-4" />
-              Hisobdan chiqish
+              {t('logout')}
             </Button>
           </form>
         </CardContent>

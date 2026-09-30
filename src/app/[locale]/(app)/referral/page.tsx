@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 export default async function ReferralPage() {
   const t = await getTranslations('nav');
+  const tc = await getTranslations('common');
 
   return (
     <div className="space-y-6">
@@ -10,7 +11,7 @@ export default async function ReferralPage() {
 
       <Card>
         <CardContent className="py-10 text-center">
-          <p className="text-muted-foreground">Referral tizimi tez orada...</p>
+          <p className="text-muted-foreground">{tc('comingSoon')}</p>
         </CardContent>
       </Card>
     </div>

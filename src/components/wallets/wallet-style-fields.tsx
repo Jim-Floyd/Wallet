@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { WALLET_COLORS, WALLET_ICONS } from '@/lib/wallet-icons';
 import { WalletAvatar } from '@/components/wallets/wallet-avatar';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 // Rang + ikonka tanlash. Qiymatlar hidden input orqali FormData ga ("color", "icon") tushadi.
 export function WalletStyleFields({
@@ -19,13 +20,15 @@ export function WalletStyleFields({
   onColorChange: (color: string) => void;
   onIconChange: (icon: string | null) => void;
 }) {
+  const t = useTranslations('wallets');
+  const tIcon = useTranslations('walletIcons');
   return (
     <>
       <input type="hidden" name="color" value={color} />
       <input type="hidden" name="icon" value={icon ?? ''} />
 
       <div className="space-y-2">
-        <Label>Rang</Label>
+        <Label>{t('color')}</Label>
         <div className="flex flex-wrap gap-2">
           {WALLET_COLORS.map((c) => (
             <button
@@ -45,14 +48,14 @@ export function WalletStyleFields({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Belgi</Label>
+          <Label>{t('icon')}</Label>
           <WalletAvatar icon={icon} color={color} currency={currency} className="h-8 w-8" />
         </div>
         <div className="grid grid-cols-8 gap-1.5">
           {/* Belgisiz — valyuta bayrog'i ko'rinadi */}
           <button
             type="button"
-            title="Valyuta bayrog'i"
+            title={t('currencyFlag')}
             onClick={() => onIconChange(null)}
             className={cn(
               'flex aspect-square items-center justify-center rounded-lg border text-xs text-muted-foreground transition-colors',
@@ -61,12 +64,12 @@ export function WalletStyleFields({
           >
             —
           </button>
-          {WALLET_ICONS.map(({ key, label, Icon }) => (
+          {WALLET_ICONS.map(({ key, Icon }) => (
             <button
               key={key}
               type="button"
-              title={label}
-              aria-label={label}
+              title={tIcon(key)}
+              aria-label={tIcon(key)}
               onClick={() => onIconChange(key)}
               className={cn(
                 'flex aspect-square items-center justify-center rounded-lg border transition-colors',

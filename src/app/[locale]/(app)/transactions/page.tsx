@@ -10,22 +10,17 @@ import { TransactionFilters } from '@/components/transactions/transaction-filter
 import { Pagination } from '@/components/transactions/pagination';
 import { ExportButton } from '@/components/transactions/export-button';
 import { Suspense } from 'react';
-import { APP_TZ, dayEnd, dayKey, dayLabel, dayStart } from '@/lib/days';
+import { dayEnd, dayKey, dayLabel, dayStart, formatDay } from '@/lib/days';
 import { processRecurring } from '@/lib/recurring-server';
-import { frequencyLabel } from '@/lib/recurring';
+import { getTranslations } from 'next-intl/server';
+import { formatMoney } from '@/lib/intl';
+import { categoryName } from '@/lib/category-icons';
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button';
 import { deleteRecurring } from '@/lib/actions/transaction';
+import { RecurringDialog, type EditableRecurring } from '@/components/transactions/recurring-dialog';
 import { Repeat } from 'lucide-react';
 
-function formatDay(date: Date) {
-  return new Intl.DateTimeFormat('uz-UZ', { timeZone: APP_TZ, day: 'numeric', month: 'short', year: 'numeric' }).format(date);
-}
-
 const PAGE_SIZE = 20;
-
-function formatAmount(amount: number, currency = 'UZS') {
-  return `${new Intl.NumberFormat('uz-UZ').format(Math.abs(amount))} ${currency}`;
-}
 
 
 type SearchParams = { type?: string; walletId?: string; from?: string; to?: string; page?: string };
@@ -46,6 +41,12 @@ export default async function TransactionsPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/${locale}/auth/login`);
   await processRecurring(user.id);
+
+  const t = await getTranslations('transactions');
+  const tDebt = await getTranslations('debts');
+  const tDays = await getTranslations('days');
+  const tCat = await getTranslations('defaultCategories');
+  const formatAmount = (amount: number, currency = 'UZS') => formatMoney(amount, currency, locale);
 
   const where = {
     userId: user.id,
@@ -113,11 +114,11 @@ export default async function TransactionsPage({
       },
       select: { type: true, amount: true, currency: true, date: true },
     });
-    for (const t of dayTxs) {
-      const key = dayKey(t.date);
+    for (const row of dayTxs) {
+      const key = dayKey(row.date);
       if (!dayTotals.has(key)) dayTotals.set(key, { income: new Map(), expense: new Map() });
-      const bucket = dayTotals.get(key)![t.type === 'INCOME' ? 'income' : 'expense'];
-      bucket.set(t.currency, (bucket.get(t.currency) ?? 0) + Number(t.amount));
+      const bucket = dayTotals.get(key)![row.type === 'INCOME' ? 'income' : 'expense'];
+      bucket.set(row.currency, (bucket.get(row.currency) ?? 0) + Number(row.amount));
     }
   }
 
@@ -132,8 +133,8 @@ export default async function TransactionsPage({
           <div>
             <p className="text-sm font-medium">
               {tx.debt
-                ? debtTxLabel(tx.type, tx.debt)
-                : tx.category ?? (isIncome ? 'Daromad' : isTransfer ? "O'tkazma" : 'Xarajat')}
+                ? debtTxLabel(tx.type, tx.debt, tDebt)
+                : tx.category ? categoryName(tx.category, tCat) : t(isIncome ? 'income' : isTransfer ? 'transfer' : 'expense')}
             </p>
             <p className="text-xs text-muted-foreground">
               {isTransfer
@@ -141,13 +142,13 @@ export default async function TransactionsPage({
                 : `${tx.wallet.name} (${tx.currency})`}
               {tx.description && !isTransfer && ` • ${tx.description}`}
               {tx.recurringId && (
-                <Repeat className="ml-1.5 inline h-3 w-3 align-[-2px]" aria-label="Takrorlanuvchi" />
+                <Repeat className="ml-1.5 inline h-3 w-3 align-[-2px]" aria-label={t('recurringMark')} />
               )}
             </p>
             {isTransfer && (tx.rate || tx.description?.includes('Kurs:')) && (
               <p className="text-xs text-muted-foreground">
                 {tx.rate
-                  ? `Kurs: ${Number(tx.rate)}`
+                  ? t('rateValue', { rate: Number(tx.rate) })
                   : tx.description?.split(' | ').find(p => p.startsWith('Kurs:'))}
               </p>
             )}
@@ -172,7 +173,7 @@ export default async function TransactionsPage({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Tranzaksiyalar</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <div className="flex items-center gap-2">
           <ExportButton locale={locale} filters={filters} />
           <TransactionDialog wallets={walletList} savedCategories={categoryList} />
@@ -184,7 +185,7 @@ export default async function TransactionsPage({
           <details>
             <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium">
               <Repeat className="h-4 w-4 text-muted-foreground" />
-              Takrorlanuvchi to&apos;lovlar ({recurringRules.length})
+              {t('recurringList', { count: recurringRules.length })}
             </summary>
             <div className="divide-y border-t">
               {recurringRules.map((r) => {
@@ -195,11 +196,11 @@ export default async function TransactionsPage({
                       <TxIcon type={r.type} category={r.category} isDebt={false} categoryIcons={categoryIcons} className="h-8 w-8" />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">
-                          {r.category ?? (isIncome ? 'Daromad' : 'Xarajat')}
+                          {r.category ? categoryName(r.category, tCat) : t(isIncome ? 'income' : 'expense')}
                           {r.description && <span className="font-normal text-muted-foreground"> • {r.description}</span>}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {frequencyLabel(r.frequency)} • {r.wallet.name} • Keyingisi: {formatDay(r.nextDate)}
+                          {t(`freq.${r.frequency}`)} • {r.wallet.name} • {t('nextOn', { date: formatDay(r.nextDate, locale) })}
                         </p>
                       </div>
                     </div>
@@ -207,11 +208,25 @@ export default async function TransactionsPage({
                       <span className={`text-sm font-semibold tabular-nums ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
                         {isIncome ? '+' : '-'}{formatAmount(Number(r.amount), r.currency)}
                       </span>
+                      <RecurringDialog
+                        wallets={walletList}
+                        savedCategories={categoryList}
+                        rule={{
+                          id: r.id,
+                          type: r.type as EditableRecurring['type'],
+                          walletId: r.walletId,
+                          amount: Number(r.amount),
+                          category: r.category,
+                          description: r.description,
+                          frequency: r.frequency,
+                          nextDate: dayKey(r.nextDate),
+                        }}
+                      />
                       <ConfirmDeleteButton
                         id={r.id}
                         action={deleteRecurring}
-                        title="Takrorni to'xtatish"
-                        description="Bundan keyin yangi yozuvlar avtomatik qo'shilmaydi. Oldin qo'shilgan yozuvlar saqlanib qoladi."
+                        title={t('stopRecurringTitle')}
+                        description={t('stopRecurringDescription')}
                       />
                     </div>
                   </div>
@@ -231,8 +246,8 @@ export default async function TransactionsPage({
           <CardContent className="py-10 text-center">
             <p className="text-muted-foreground">
               {Object.values(filters).some(Boolean)
-                ? 'Bu filtrlarga mos tranzaksiya topilmadi'
-                : 'Hali tranzaksiya mavjud emas'}
+                ? t('noMatches')
+                : t('empty')}
             </p>
           </CardContent>
         </Card>
@@ -246,7 +261,7 @@ export default async function TransactionsPage({
                 <section key={key} className="border-b last:border-b-0">
                   {/* Kun sarlavhasi: chapda sana, o'ngda kunlik jami */}
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 border-b bg-muted/50 px-4 py-1.5 text-xs">
-                    <span className="font-semibold text-muted-foreground">{dayLabel(key)}</span>
+                    <span className="font-semibold text-muted-foreground">{dayLabel(key, tDays, locale)}</span>
                     {totals && (
                       <div className="flex flex-col items-end gap-0.5 font-semibold tabular-nums">
                         {Array.from(new Set(Array.from(totals.income.keys()).concat(Array.from(totals.expense.keys())))).map((cur) => {

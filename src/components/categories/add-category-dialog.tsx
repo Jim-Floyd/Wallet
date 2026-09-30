@@ -10,10 +10,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { CATEGORY_ICONS, categoryIconKey, iconBg } from '@/lib/category-icons';
 import { cn } from '@/lib/utils';
 import { Plus, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 type Category = { id: string; name: string; icon: string | null };
 
 export function AddCategoryDialog({ onCreated }: { onCreated: (category: Category) => void }) {
+  const t = useTranslations('categories');
+  const tc = useTranslations('common');
+  const tIcon = useTranslations('categoryIcons');
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<string | null>(null);
@@ -54,32 +58,32 @@ export function AddCategoryDialog({ onCreated }: { onCreated: (category: Categor
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Yangi kategoriya</DialogTitle>
+          <DialogTitle>{t('newTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {error && (
             <Alert variant="destructive" className="text-sm py-2">{error}</Alert>
           )}
           <div className="space-y-2">
-            <Label htmlFor="cat-name">Nomi</Label>
+            <Label htmlFor="cat-name">{t('name')}</Label>
             <Input
               id="cat-name"
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Kategoriya nomi..."
+              placeholder={t('namePlaceholder')}
               disabled={saving}
             />
           </div>
           <div className="space-y-2">
-            <Label>Belgi</Label>
+            <Label>{t('icon')}</Label>
             <div className="grid max-h-44 grid-cols-7 gap-1.5 overflow-y-auto pr-1">
-              {CATEGORY_ICONS.map(({ key, label, Icon, color }) => (
+              {CATEGORY_ICONS.map(({ key, Icon, color }) => (
                 <button
                   key={key}
                   type="button"
-                  title={label}
-                  aria-label={label}
+                  title={tIcon(key)}
+                  aria-label={tIcon(key)}
                   onClick={() => setIcon(key)}
                   className={cn(
                     'flex aspect-square items-center justify-center rounded-full transition-transform',
@@ -94,11 +98,11 @@ export function AddCategoryDialog({ onCreated }: { onCreated: (category: Categor
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => { setOpen(false); reset(); }}>
-              Bekor qilish
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={saving || !name.trim()}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Saqlash
+              {tc('save')}
             </Button>
           </div>
         </form>

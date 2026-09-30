@@ -9,27 +9,29 @@ import { ConfirmDeleteButton } from '@/components/confirm-delete-button';
 import { EditWalletDialog } from '@/components/wallets/edit-wallet-dialog';
 import { WalletAvatar } from '@/components/wallets/wallet-avatar';
 import { deleteWallet } from '@/lib/actions/wallet';
+import { getTranslations } from 'next-intl/server';
+import { intlLocale } from '@/lib/intl';
 
+// UZS belgisi tarjimada (wallets.uzsSymbol)
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  UZS: "so'm",
   USD: '$',
   EUR: '€',
   RUB: '₽',
 };
 
-function formatBalance(amount: number | string | { toNumber: () => number }, currency: string) {
-  const num = typeof amount === 'object' ? amount.toNumber() : Number(amount);
-  const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
-  if (currency === 'UZS') {
-    return `${num.toLocaleString('uz-UZ')} ${symbol}`;
-  }
-  return `${num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
+function formatBalance(amount: { toString(): string }, currency: string, locale: string, uzsSymbol: string) {
+  const num = Number(amount);
+  const symbol = currency === 'UZS' ? uzsSymbol : CURRENCY_SYMBOLS[currency] ?? currency;
+  const digits = currency === 'UZS' ? { maximumFractionDigits: 2 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  return `${num.toLocaleString(intlLocale(locale), digits)} ${symbol}`;
 }
 
-export default async function WalletsPage() {
+export default async function WalletsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations('wallets');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/uz/auth/login');
+  if (!user) redirect(`/${locale}/auth/login`);
   await processRecurring(user.id);
 
   const wallets = await prisma.wallet.findMany({
@@ -40,14 +42,14 @@ export default async function WalletsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Hamyonlar</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <AddWalletDialog />
       </div>
 
       {wallets.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center">
-            <p className="text-muted-foreground">Hali hamyon qo&apos;shilmagan</p>
+            <p className="text-muted-foreground">{t('empty')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -73,11 +75,11 @@ export default async function WalletsPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold truncate">{wallet.name}</p>
                         {wallet.isDefault && (
-                          <Badge variant="secondary" className="text-xs shrink-0">Asosiy</Badge>
+                          <Badge variant="secondary" className="text-xs shrink-0">{t('default')}</Badge>
                         )}
                       </div>
                       <p className="text-2xl font-bold mt-1 tabular-nums">
-                        {formatBalance(wallet.balance, wallet.currency)}
+                        {formatBalance(wallet.balance, wallet.currency, locale, t('uzsSymbol'))}
                       </p>
                     </div>
                   </div>
@@ -96,8 +98,8 @@ export default async function WalletsPage() {
                       <ConfirmDeleteButton
                         id={wallet.id}
                         action={deleteWallet}
-                        title="Hamyonni o'chirish"
-                        description={`"${wallet.name}" hamyoni va undagi barcha kirim/chiqim yozuvlari o'chiriladi. Bu amalni qaytarib bo'lmaydi.`}
+                        title={t('deleteTitle')}
+                        description={t('deleteDescription', { name: wallet.name })}
                         className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
                       />
                     )}

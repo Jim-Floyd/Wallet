@@ -1,4 +1,5 @@
 import type { DebtType, TransactionType } from '@/generated/prisma/client';
+import type { Translate } from '@/lib/intl';
 
 // Qarz berilganda/olinganda hamyon harakati
 export function initialTxType(type: DebtType): TransactionType {
@@ -10,13 +11,13 @@ export function repayTxType(type: DebtType): TransactionType {
   return type === 'LENT' ? 'DEBT_IN' : 'DEBT_OUT';
 }
 
-// Tranzaksiyalar ro'yxatida qarz yozuvining nomi
-export function debtTxLabel(txType: TransactionType, debt: { type: DebtType; person: string }) {
+// Tranzaksiyalar ro'yxatida qarz yozuvining nomi. t — "debts" nomlar fazosi
+export function debtTxLabel(txType: TransactionType, debt: { type: DebtType; person: string }, t: Translate) {
   const initial = txType === initialTxType(debt.type);
-  const action = debt.type === 'LENT'
-    ? (initial ? 'Qarz berildi' : 'Qarz qaytarildi')
-    : (initial ? 'Qarz olindi' : "Qarz to'landi");
-  return `${action}: ${debt.person}`;
+  const key = debt.type === 'LENT'
+    ? (initial ? 'txLent' : 'txLentRepaid')
+    : (initial ? 'txBorrowed' : 'txBorrowedRepaid');
+  return t(key, { person: debt.person });
 }
 
 // URL dagi ?type= filtrini Prisma shartiga aylantiradi ("DEBT" — ikkala qarz turi)

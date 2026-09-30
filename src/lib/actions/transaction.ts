@@ -7,6 +7,7 @@ import { balanceEffects, balanceUpdates, isDebtType, reverseEffects } from '@/li
 import { parseFormDate } from '@/lib/form-date';
 import { dayKey, dayStart } from '@/lib/days';
 import { isFrequency, occurrenceDate } from '@/lib/recurring';
+import { getTranslations } from 'next-intl/server';
 
 export type TransactionState = { error?: string; success?: boolean } | null;
 
@@ -27,8 +28,7 @@ type TxData = {
   date?: Date;
 };
 
-const DEBT_TX_ERROR = "Qarz tranzaksiyasini Qarzlar sahifasida boshqaring";
-
+// Xatoda "errors" tarjima kalitini qaytaradi — action uni tarjima qiladi
 async function parseTransactionForm(
   formData: FormData,
   userId: string,
@@ -40,14 +40,14 @@ async function parseTransactionForm(
   const description = (formData.get('description') as string) || null;
 
   if (!walletId || !type || !amount || isNaN(amount) || amount <= 0) {
-    return { error: 'Hamyon, tur va miqdor kiritilishi shart' };
+    return { error: 'requiredTxFields' };
   }
 
   const date = parseFormDate(formData);
   if (date && !(date instanceof Date)) return date;
 
   const wallet = await prisma.wallet.findFirst({ where: { id: walletId, userId } });
-  if (!wallet) return { error: 'Hamyon topilmadi' };
+  if (!wallet) return { error: 'walletNotFound' };
 
   if (type !== 'TRANSFER') {
     return {
@@ -57,11 +57,11 @@ async function parseTransactionForm(
   }
 
   const toWalletId = formData.get('toWalletId') as string;
-  if (!toWalletId) return { error: "Qabul qiluvchi hamyon tanlang" };
-  if (toWalletId === walletId) return { error: "Bir xil hamyonga o'tkazib bo'lmaydi" };
+  if (!toWalletId) return { error: 'selectTargetWallet' };
+  if (toWalletId === walletId) return { error: 'sameWallet' };
 
   const toWallet = await prisma.wallet.findFirst({ where: { id: toWalletId, userId } });
-  if (!toWallet) return { error: 'Qabul qiluvchi hamyon topilmadi' };
+  if (!toWallet) return { error: 'targetWalletNotFound' };
 
   if (wallet.currency === toWallet.currency) {
     return {
@@ -71,7 +71,7 @@ async function parseTransactionForm(
   }
 
   const rate = parseFloat(formData.get('rate') as string);
-  if (!rate || rate <= 0) return { error: 'Valyuta kursini kiriting' };
+  if (!rate || rate <= 0) return { error: 'enterRate' };
 
   const fromRank = CURRENCY_RANK[wallet.currency] ?? 1;
   const toRank = CURRENCY_RANK[toWallet.currency] ?? 1;
@@ -87,10 +87,11 @@ export async function addTransaction(_: TransactionState, formData: FormData): P
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const type = formData.get('type') as TxType;
   const data = await parseTransactionForm(formData, user.id, type);
-  if ('error' in data) return { error: data.error };
+  if ('error' in data) return { error: t(data.error) };
 
   // Takrorlash (faqat kirim/chiqim): qoida yaratiladi, birinchi yozuv unga bog'lanadi
   const repeat = formData.get('repeat');
@@ -128,15 +129,64 @@ export async function addTransaction(_: TransactionState, formData: FormData): P
   return { success: true };
 }
 
+// Takrorni tahrirlash — faqat kelajakdagi yozuvlarga ta'sir qiladi (oldingilari va balans o'zgarmaydi).
+// Davr yoki keyingi sana o'zgarsa, jadval shu sanadan qayta boshlanadi (startDate = yangi sana, count = 0).
+export async function updateRecurring(_: TransactionState, formData: FormData): Promise<TransactionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
+
+  const id = formData.get('id') as string;
+  const walletId = formData.get('walletId') as string;
+  const amount = parseFloat(formData.get('amount') as string);
+  const frequency = formData.get('frequency');
+  const nextDateStr = formData.get('nextDate') as string;
+  const today = formData.get('today') as string;
+  const category = (formData.get('category') as string) || null;
+  const description = ((formData.get('description') as string) ?? '').trim() || null;
+
+  if (!amount || isNaN(amount) || amount <= 0) return { error: t('amountPositive') };
+  if (!isFrequency(frequency)) return { error: t('selectFrequency') };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDateStr)) return { error: t('invalidNextDate') };
+  if (today && nextDateStr < today) return { error: t('nextDatePast') };
+
+  const rule = await prisma.recurringRule.findFirst({ where: { id, userId: user.id } });
+  if (!rule) return { error: t('recurringNotFound') };
+
+  const wallet = await prisma.wallet.findFirst({ where: { id: walletId, userId: user.id } });
+  if (!wallet) return { error: t('walletNotFound') };
+
+  const reschedule = frequency !== rule.frequency || nextDateStr !== dayKey(rule.nextDate);
+  const newStart = dayStart(nextDateStr);
+
+  await prisma.recurringRule.update({
+    where: { id },
+    data: {
+      walletId,
+      currency: wallet.currency,
+      amount,
+      category,
+      description,
+      frequency,
+      ...(reschedule && { startDate: newStart, count: 0, nextDate: newStart }),
+    },
+  });
+
+  revalidatePath('/', 'layout');
+  return { success: true };
+}
+
 // Takrorni to'xtatish: qoida o'chadi, oldin yaratilgan yozuvlar qoladi (recurringId → null)
 export async function deleteRecurring(_: TransactionState, formData: FormData): Promise<TransactionState> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const id = formData.get('id') as string;
   const { count } = await prisma.recurringRule.deleteMany({ where: { id, userId: user.id } });
-  if (count === 0) return { error: 'Takror topilmadi' };
+  if (count === 0) return { error: t('recurringNotFound') };
 
   revalidatePath('/', 'layout');
   return { success: true };
@@ -146,16 +196,17 @@ export async function updateTransaction(_: TransactionState, formData: FormData)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const id = formData.get('id') as string;
   const existing = await prisma.transaction.findFirst({ where: { id, userId: user.id } });
-  if (!existing) return { error: 'Tranzaksiya topilmadi' };
-  if (isDebtType(existing.type)) return { error: DEBT_TX_ERROR };
+  if (!existing) return { error: t('transactionNotFound') };
+  if (isDebtType(existing.type)) return { error: t('debtTxManagedElsewhere') };
   const type = existing.type as TxType;
 
   // Turi o'zgarmaydi — faqat qiymatlar tahrirlanadi
   const data = await parseTransactionForm(formData, user.id, type);
-  if ('error' in data) return { error: data.error };
+  if ('error' in data) return { error: t(data.error) };
 
   await prisma.$transaction([
     prisma.transaction.update({ where: { id }, data }),
@@ -170,11 +221,12 @@ export async function deleteTransaction(_: TransactionState, formData: FormData)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const id = formData.get('id') as string;
   const existing = await prisma.transaction.findFirst({ where: { id, userId: user.id } });
-  if (!existing) return { error: 'Tranzaksiya topilmadi' };
-  if (isDebtType(existing.type)) return { error: DEBT_TX_ERROR };
+  if (!existing) return { error: t('transactionNotFound') };
+  if (isDebtType(existing.type)) return { error: t('debtTxManagedElsewhere') };
 
   await prisma.$transaction([
     prisma.transaction.delete({ where: { id } }),

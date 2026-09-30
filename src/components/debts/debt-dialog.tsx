@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { SELECT_CLS } from '@/components/transactions/transaction-dialog';
 import { toDateInput } from '@/lib/form-date';
 import { Loader2, Pencil, Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 const CURRENCIES = ['UZS', 'USD', 'EUR', 'RUB'];
 
@@ -29,16 +30,18 @@ export type EditableDebt = {
 };
 
 function SubmitButton() {
+  const t = useTranslations('common');
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Saqlash
+      {t('save')}
     </Button>
   );
 }
 
 export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: EditableDebt }) {
+  const t = useTranslations('debts');
   const isEdit = !!debt;
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<DebtType>('LENT');
@@ -68,14 +71,14 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
         render={
           isEdit
             ? <Button variant="ghost" size="icon" className="h-7 w-7" />
-            : <Button size="sm"><Plus className="mr-1 h-4 w-4" />Qarz qo&apos;shish</Button>
+            : <Button size="sm"><Plus className="mr-1 h-4 w-4" />{t('add')}</Button>
         }
       >
         {isEdit && <Pencil className="h-3.5 w-3.5" />}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Qarzni tahrirlash' : 'Yangi qarz'}</DialogTitle>
+          <DialogTitle>{isEdit ? t('editTitle') : t('newTitle')}</DialogTitle>
         </DialogHeader>
         <form action={action} className="space-y-4">
           {isEdit ? (
@@ -95,16 +98,16 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
 
           {!isEdit && (
             <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-              {(['LENT', 'BORROWED'] as const).map((t) => (
+              {(['LENT', 'BORROWED'] as const).map((value) => (
                 <button
-                  key={t}
+                  key={value}
                   type="button"
-                  onClick={() => setType(t)}
+                  onClick={() => setType(value)}
                   className={`rounded-md py-1.5 text-xs font-medium transition-colors ${
-                    type === t ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    type === value ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {t === 'LENT' ? 'Qarz berdim' : 'Qarz oldim'}
+                  {value === 'LENT' ? t('iLent') : t('iBorrowed')}
                 </button>
               ))}
             </div>
@@ -114,13 +117,13 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
             <div className="space-y-2">
               <Label htmlFor="debt-person">
                 {isEdit
-                  ? 'Kim bilan'
-                  : type === 'LENT' ? 'Kimga' : 'Kimdan'}
+                  ? t('personWith')
+                  : type === 'LENT' ? t('personTo') : t('personFrom')}
               </Label>
-              <Input id="debt-person" name="person" placeholder="Ism" defaultValue={debt?.person} required />
+              <Input id="debt-person" name="person" placeholder={t('personPlaceholder')} defaultValue={debt?.person} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="debt-phone">Telefon (ixtiyoriy)</Label>
+              <Label htmlFor="debt-phone">{t('phone')}</Label>
               <Input id="debt-phone" name="phone" type="tel" placeholder="+998..." defaultValue={debt?.phone ?? ''} />
             </div>
           </div>
@@ -128,7 +131,7 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
           {isEdit && (
             <div className="space-y-2">
               <Label htmlFor="debt-edit-wallet">
-                {debt.type === 'LENT' ? 'Qaysi hamyondan berildi' : 'Qaysi hamyonga olindi'}
+                {debt.type === 'LENT' ? t('walletLent') : t('walletBorrowed')}
               </Label>
               <select
                 id="debt-edit-wallet"
@@ -139,10 +142,10 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
                 {wallets.filter(w => w.currency === debt.currency).map((w) => (
                   <option key={w.id} value={w.id}>{w.name} ({w.currency})</option>
                 ))}
-                <option value="">— Hamyonsiz (balansga ta&apos;sir qilmaydi) —</option>
+                <option value="">{t('noWalletOption')}</option>
               </select>
               <p className="text-xs text-muted-foreground">
-                Faqat {debt.currency} hamyonlari. O&apos;zgartirilsa, hamyon balanslari avtomatik to&apos;g&apos;rilanadi.
+                {t('editWalletHint', { currency: debt.currency })}
               </p>
             </div>
           )}
@@ -151,7 +154,7 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
             <>
               <div className="space-y-2">
                 <Label htmlFor="debt-wallet">
-                  {type === 'LENT' ? 'Qaysi hamyondan berildi' : 'Qaysi hamyonga olindi'}
+                  {type === 'LENT' ? t('walletLent') : t('walletBorrowed')}
                 </Label>
                 <select
                   id="debt-wallet"
@@ -162,28 +165,28 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
                   {wallets.map((w) => (
                     <option key={w.id} value={w.id}>{w.name} ({w.currency})</option>
                   ))}
-                  <option value="">— Hamyonsiz (balansga ta&apos;sir qilmaydi) —</option>
+                  <option value="">{t('noWalletOption')}</option>
                 </select>
                 {!walletId && (
                   <p className="text-xs text-muted-foreground">
-                    Oldindan mavjud qarzni yozib qo&apos;yish uchun. Hamyon balansi o&apos;zgarmaydi.
+                    {t('noWalletHint')}
                   </p>
                 )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="debt-amount">Miqdor{wallet ? ` (${wallet.currency})` : ''}</Label>
+                  <Label htmlFor="debt-amount">{t('amount')}{wallet ? ` (${wallet.currency})` : ''}</Label>
                   <Input id="debt-amount" name="amount" type="number" min="0.01" step="0.01" placeholder="0" required />
                 </div>
                 {walletId ? (
                   <div className="space-y-2">
-                    <Label htmlFor="debt-date">Sana</Label>
+                    <Label htmlFor="debt-date">{t('date')}</Label>
                     <Input id="debt-date" name="date" type="date" max={today} defaultValue={today} required />
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Label htmlFor="debt-currency">Valyuta</Label>
+                    <Label htmlFor="debt-currency">{t('currency')}</Label>
                     <select
                       id="debt-currency"
                       value={currency}
@@ -198,7 +201,7 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
 
               {!walletId && (
                 <div className="space-y-2">
-                  <Label htmlFor="debt-date">Sana</Label>
+                  <Label htmlFor="debt-date">{t('date')}</Label>
                   <Input id="debt-date" name="date" type="date" max={today} defaultValue={today} required />
                 </div>
               )}
@@ -206,7 +209,7 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="debt-due">Qaytarish muddati (ixtiyoriy)</Label>
+            <Label htmlFor="debt-due">{t('dueDate')}</Label>
             <Input
               id="debt-due"
               name="dueDate"
@@ -216,8 +219,8 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="debt-desc">Izoh (ixtiyoriy)</Label>
-            <Input id="debt-desc" name="description" placeholder="Qo'shimcha ma'lumot..." defaultValue={debt?.description ?? ''} />
+            <Label htmlFor="debt-desc">{t('note')}</Label>
+            <Input id="debt-desc" name="description" placeholder={t('notePlaceholder')} defaultValue={debt?.description ?? ''} />
           </div>
 
           <SubmitButton />

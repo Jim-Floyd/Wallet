@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { getTranslations } from 'next-intl/server';
 import { WALLET_ICON_KEYS } from '@/lib/wallet-icons';
 
 export type WalletState = { error?: string; success?: boolean } | null;
@@ -17,6 +18,7 @@ export async function addWallet(_: WalletState, formData: FormData): Promise<Wal
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const name = formData.get('name') as string;
   const currency = (formData.get('currency') as string) || 'UZS';
@@ -24,7 +26,7 @@ export async function addWallet(_: WalletState, formData: FormData): Promise<Wal
   const color = (formData.get('color') as string) || null;
   const icon = parseIcon(formData);
 
-  if (!name) return { error: 'Hamyon nomi kiritilishi shart' };
+  if (!name) return { error: t('walletNameRequired') };
 
   await prisma.wallet.create({
     data: { userId: user.id, name, currency, balance, color, icon },
@@ -38,10 +40,11 @@ export async function deleteWallet(_: WalletState, formData: FormData): Promise<
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
   const id = formData.get('id') as string;
   const wallet = await prisma.wallet.findFirst({ where: { id, userId: user.id } });
-  if (!wallet) return { error: 'Hamyon topilmadi' };
-  if (wallet.isDefault) return { error: "Asosiy hamyonni o'chirish mumkin emas" };
+  if (!wallet) return { error: t('walletNotFound') };
+  if (wallet.isDefault) return { error: t('defaultWalletDelete') };
 
   // O'tkazmalar boshqa hamyon balansiga ham ta'sir qilgan — ularni jimgina o'chirib bo'lmaydi
   const transferCount = await prisma.transaction.count({
@@ -49,7 +52,7 @@ export async function deleteWallet(_: WalletState, formData: FormData): Promise<
   });
   if (transferCount > 0) {
     return {
-      error: `Bu hamyon ${transferCount} ta o'tkazmada ishtirok etgan. Avval ularni Tranzaksiyalar sahifasida o'chiring.`,
+      error: t('walletHasTransfers', { count: transferCount }),
     };
   }
 
@@ -57,7 +60,7 @@ export async function deleteWallet(_: WalletState, formData: FormData): Promise<
   const debtTxCount = await prisma.transaction.count({ where: { walletId: id, debtId: { not: null } } });
   if (debtTxCount > 0) {
     return {
-      error: `Bu hamyonda ${debtTxCount} ta qarz yozuvi bor. Avval ularni Qarzlar sahifasida o'chiring.`,
+      error: t('walletHasDebts', { count: debtTxCount }),
     };
   }
 
@@ -74,15 +77,16 @@ export async function updateWallet(_: WalletState, formData: FormData): Promise<
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
   const id = formData.get('id') as string;
   const name = formData.get('name') as string;
   const color = (formData.get('color') as string) || null;
   const icon = parseIcon(formData);
   const makeDefault = formData.get('makeDefault') === 'on';
-  if (!name) return { error: 'Hamyon nomi kiritilishi shart' };
+  if (!name) return { error: t('walletNameRequired') };
 
   const wallet = await prisma.wallet.findFirst({ where: { id, userId: user.id } });
-  if (!wallet) return { error: 'Hamyon topilmadi' };
+  if (!wallet) return { error: t('walletNotFound') };
 
   await prisma.$transaction([
     // Asosiy hamyon bitta bo'ladi: avvalgisidan belgi olinadi

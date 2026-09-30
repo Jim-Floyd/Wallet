@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown, Wallet, CreditCard, HandCoins } from 'lucide-react';
 import { debtProgress, debtTxLabel } from '@/lib/debt';
-import { dueInfo } from '@/lib/days';
+import { dueInfo, formatDay } from '@/lib/days';
+import { formatMoney, intlLocale } from '@/lib/intl';
+import { categoryName } from '@/lib/category-icons';
 import { processRecurring } from '@/lib/recurring-server';
 import { WalletAvatar } from '@/components/wallets/wallet-avatar';
 import { EditWalletDialog } from '@/components/wallets/edit-wallet-dialog';
@@ -17,19 +19,16 @@ import { redirect } from 'next/navigation';
 import { AddWalletDialog } from '@/components/dashboard/add-wallet-dialog';
 import { TransactionDialog } from '@/components/transactions/transaction-dialog';
 
-function formatAmount(amount: number, currency = 'UZS') {
-  const formatted = new Intl.NumberFormat('uz-UZ').format(Math.abs(amount));
-  return `${formatted} ${currency}`;
-}
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
-}
-
 export default async function DashboardPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const t = await getTranslations('dashboard');
   const tc = await getTranslations('transactions');
+  const tDebt = await getTranslations('debts');
+  const tDays = await getTranslations('days');
+  const tCat = await getTranslations('defaultCategories');
+  const tw = await getTranslations('wallets');
+  const formatAmount = (amount: number, currency = 'UZS') => formatMoney(amount, currency, locale);
+  const formatDate = (date: Date) => formatDay(date, locale);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -136,7 +135,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
                 + {formatAmount(bal, cur)}
               </div>
             ))}
-            <p className="text-xs text-muted-foreground mt-1">{wallets.length} ta hamyon</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('walletCount', { count: wallets.length })}</p>
           </CardContent>
         </Card>
 
@@ -150,7 +149,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
           <CardContent>
             <div className="text-2xl font-bold text-green-500">+{formatAmount(monthlyIncome)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {new Intl.DateTimeFormat('uz-UZ', { month: 'long' }).format(now)}
+              {new Intl.DateTimeFormat(intlLocale(locale), { month: 'long' }).format(now)}
             </p>
           </CardContent>
         </Card>
@@ -165,7 +164,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
           <CardContent>
             <div className="text-2xl font-bold text-red-500">-{formatAmount(monthlyExpense)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {new Intl.DateTimeFormat('uz-UZ', { month: 'long' }).format(now)}
+              {new Intl.DateTimeFormat(intlLocale(locale), { month: 'long' }).format(now)}
             </p>
           </CardContent>
         </Card>
@@ -200,7 +199,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
                     <div className="text-right">
                       <p className="text-sm font-semibold">{formatAmount(Number(wallet.balance), wallet.currency)}</p>
                       {wallet.isDefault && (
-                        <p className="text-xs text-primary">Asosiy</p>
+                        <p className="text-xs text-primary">{tw('default')}</p>
                       )}
                     </div>
                     <EditWalletDialog
@@ -221,8 +220,8 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
                       <ConfirmDeleteButton
                         id={wallet.id}
                         action={deleteWallet}
-                        title="Hamyonni o'chirish"
-                        description={`"${wallet.name}" hamyoni va undagi barcha kirim/chiqim yozuvlari o'chiriladi. Bu amalni qaytarib bo'lmaydi.`}
+                        title={tw('deleteTitle')}
+                        description={tw('deleteDescription', { name: wallet.name })}
                       />
                     )}
                   </div>
@@ -238,21 +237,21 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <HandCoins className="h-5 w-5" />
-                Qarzlar
+                {tDebt('title')}
               </span>
               <Link href={`/${locale}/debts`} className="text-xs font-normal text-muted-foreground hover:text-foreground">
-                Barchasi →
+                {t('seeAll')}
               </Link>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {openDebts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Ochiq qarz yo&apos;q</p>
+              <p className="text-sm text-muted-foreground">{tDebt('noOpen')}</p>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="rounded-lg bg-green-50 p-2 dark:bg-green-950/30">
-                    <p className="text-xs text-muted-foreground">Menga qarzdor</p>
+                    <p className="text-xs text-muted-foreground">{tDebt('owedToMe')}</p>
                     {owedToMe.length === 0
                       ? <p className="font-semibold text-muted-foreground">0</p>
                       : owedToMe.map(([cur, v]) => (
@@ -260,7 +259,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
                       ))}
                   </div>
                   <div className="rounded-lg bg-red-50 p-2 dark:bg-red-950/30">
-                    <p className="text-xs text-muted-foreground">Mening qarzim</p>
+                    <p className="text-xs text-muted-foreground">{tDebt('iOwe')}</p>
                     {iOwe.length === 0
                       ? <p className="font-semibold text-muted-foreground">0</p>
                       : iOwe.map(([cur, v]) => (
@@ -272,7 +271,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
                 <div className="divide-y rounded-lg border">
                   {upcomingDebts.map((d) => {
                     const isLent = d.type === 'LENT';
-                    const due = d.dueDate ? dueInfo(d.dueDate) : null;
+                    const due = d.dueDate ? dueInfo(d.dueDate, tDays, locale) : null;
                     return (
                       <div key={d.id} className="flex items-center justify-between gap-2 px-3 py-2">
                         <div className="min-w-0">
@@ -282,7 +281,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
                               : due?.tone === 'soon' ? 'font-medium text-amber-600'
                               : 'text-muted-foreground'
                           }`}>
-                            {due ? due.text : 'Muddatsiz'}
+                            {due ? due.text : tDebt('noDueDate')}
                           </p>
                         </div>
                         <p className={`shrink-0 text-sm font-semibold tabular-nums ${isLent ? 'text-green-600' : 'text-red-600'}`}>
@@ -294,7 +293,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
                 </div>
                 {openDebts.length > upcomingDebts.length && (
                   <Link href={`/${locale}/debts`} className="block text-center text-xs text-muted-foreground hover:text-foreground">
-                    Yana {openDebts.length - upcomingDebts.length} ta qarz →
+                    {t('moreDebts', { count: openDebts.length - upcomingDebts.length })}
                   </Link>
                 )}
               </>
@@ -331,8 +330,8 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
                       <div>
                         <p className="text-sm font-medium">
                           {tx.debt
-                            ? debtTxLabel(tx.type, tx.debt)
-                            : tx.category ?? (isIncome ? tc('income') : isTransfer ? tc('transfer') : tc('expense'))}
+                            ? debtTxLabel(tx.type, tx.debt, tDebt)
+                            : tx.category ? categoryName(tx.category, tCat) : (isIncome ? tc('income') : isTransfer ? tc('transfer') : tc('expense'))}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {isTransfer

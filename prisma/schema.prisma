@@ -91,7 +91,7 @@ model RecurringRule {
   description  String?
   frequency    RecurringFrequency
   startDate    DateTime
-  count        Int                @default(1) // yaratilgan takrorlar soni
+  count        Int                @default(1) // keyingi takror indeksi (startDate dan); tahrirda jadval qayta boshlansa 0
   nextDate     DateTime
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt

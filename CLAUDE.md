@@ -77,6 +77,11 @@ Cross-currency transfers store `toAmount` + `toCurrency` on the Transaction reco
 
 Translation files: `messages/uz.json`, `messages/ru.json`, `messages/en.json`. Use `getTranslations()` in Server Components and `useTranslations()` in Client Components.
 
+- **No hardcoded UI text** — every user-visible string (labels, dialog titles, server-action errors via `getTranslations('errors')`) goes into all three files. Messages are ICU: use `{count, plural, ...}` for ru/en counts.
+- **Formatting** — use `formatMoney(amount, currency, locale)` from `src/lib/intl.ts` and `formatDay()` from `src/lib/days.ts`; never hardcode `'uz-UZ'`.
+- **Default categories** are stored in the DB by their Uzbek name (`Oziq-ovqat`, ...); display them with `categoryName(name, tCat)` (`defaultCategories` namespace). User-created categories are shown as typed.
+- Pure libs that return text take a `t: Translate` argument instead of hardcoding strings (`dayLabel`, `dueInfo`, `debtTxLabel`).
+
 ---
 
 ## Current State & Next Work

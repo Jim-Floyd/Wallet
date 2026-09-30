@@ -9,28 +9,33 @@ import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { WalletStyleFields } from '@/components/wallets/wallet-style-fields';
 import { WALLET_COLORS } from '@/lib/wallet-icons';
 
+// Nomlari tarjimada: currencies.<value>
 const CURRENCIES = [
-  { value: 'UZS', label: "So'm",   flag: '🇺🇿' },
-  { value: 'USD', label: 'Dollar', flag: '🇺🇸' },
-  { value: 'EUR', label: 'Evro',   flag: '🇪🇺' },
-  { value: 'RUB', label: 'Rubl',   flag: '🇷🇺' },
+  { value: 'UZS', flag: '🇺🇿' },
+  { value: 'USD', flag: '🇺🇸' },
+  { value: 'EUR', flag: '🇪🇺' },
+  { value: 'RUB', flag: '🇷🇺' },
 ];
 
 
 function SubmitButton() {
+  const t = useTranslations('common');
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Saqlash
+      {t('save')}
     </Button>
   );
 }
 
 export function AddWalletDialog() {
+  const t = useTranslations('wallets');
+  const tCur = useTranslations('currencies');
   const [open, setOpen] = useState(false);
   const [currency, setCurrency] = useState('UZS');
   const [color, setColor] = useState(WALLET_COLORS[0]);
@@ -53,7 +58,7 @@ export function AddWalletDialog() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Yangi hamyon</DialogTitle>
+          <DialogTitle>{t('newTitle')}</DialogTitle>
         </DialogHeader>
         <form action={action} className="space-y-4">
           <input type="hidden" name="currency" value={currency} />
@@ -63,12 +68,12 @@ export function AddWalletDialog() {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="wallet-name">Nomi</Label>
-            <Input id="wallet-name" name="name" placeholder="Masalan: Asosiy hamyon" required />
+            <Label htmlFor="wallet-name">{t('name')}</Label>
+            <Input id="wallet-name" name="name" placeholder={t('namePlaceholder')} required />
           </div>
 
           <div className="space-y-2">
-            <Label>Valyuta</Label>
+            <Label>{t('currency')}</Label>
             <div className="grid grid-cols-4 gap-2">
               {CURRENCIES.map((c) => (
                 <button
@@ -83,14 +88,14 @@ export function AddWalletDialog() {
                 >
                   <span className="text-xl">{c.flag}</span>
                   <span className="font-mono text-xs font-bold">{c.value}</span>
-                  <span className="text-xs text-muted-foreground">{c.label}</span>
+                  <span className="text-xs text-muted-foreground">{tCur(c.value)}</span>
                 </button>
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="wallet-balance">Boshlang&apos;ich balans ({currency})</Label>
+            <Label htmlFor="wallet-balance">{t('initialBalance', { currency })}</Label>
             <Input
               id="wallet-balance"
               name="balance"

@@ -8,15 +8,17 @@ import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { Loader2, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 type DeleteState = { error?: string; success?: boolean } | null;
 
 function ConfirmButton() {
+  const t = useTranslations('common');
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="destructive" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      O&apos;chirish
+      {t('delete')}
     </Button>
   );
 }
@@ -34,6 +36,7 @@ export function ConfirmDeleteButton({
   description: string;
   className?: string;
 }) {
+  const t = useTranslations('common');
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState<DeleteState, FormData>(action, null);
 
@@ -65,7 +68,7 @@ export function ConfirmDeleteButton({
             <Alert variant="destructive" className="text-sm py-2">{state.error}</Alert>
           )}
           <DialogFooter>
-            <DialogClose render={<Button type="button" variant="outline" />}>Bekor qilish</DialogClose>
+            <DialogClose render={<Button type="button" variant="outline" />}>{t('cancel')}</DialogClose>
             <ConfirmButton />
           </DialogFooter>
         </form>

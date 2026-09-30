@@ -2,8 +2,10 @@
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export function Pagination({ page, total, pageSize }: { page: number; total: number; pageSize: number }) {
+  const t = useTranslations('transactions');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -33,7 +35,7 @@ export function Pagination({ page, total, pageSize }: { page: number; total: num
 
   return (
     <div className="flex items-center justify-between px-1">
-      <p className="text-xs text-muted-foreground">{from}–{to} / {total} ta</p>
+      <p className="text-xs text-muted-foreground">{t('pageRange', { from, to, total })}</p>
       <div className="flex items-center gap-1">
         <button
           onClick={() => go(page - 1)}

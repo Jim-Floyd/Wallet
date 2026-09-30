@@ -11,9 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AddCategoryDialog } from '@/components/categories/add-category-dialog';
 import { Plus, Pencil, Loader2 } from 'lucide-react';
 import { toDateInput } from '@/lib/form-date';
+import { useLocale, useTranslations } from 'next-intl';
+import { intlLocale } from '@/lib/intl';
 import { APP_TZ, dayStart } from '@/lib/days';
 import { FREQUENCIES, occurrenceDate, type Frequency } from '@/lib/recurring';
-import { EXPENSE_DEFAULTS, INCOME_DEFAULTS, categoryIconKey, getCategoryIcon, iconBg } from '@/lib/category-icons';
+import { EXPENSE_DEFAULTS, INCOME_DEFAULTS, categoryIconKey, categoryName, getCategoryIcon, iconBg } from '@/lib/category-icons';
 
 const CURRENCY_RANK: Record<string, number> = { UZS: 1, RUB: 2, USD: 3, EUR: 4 };
 
@@ -36,11 +38,12 @@ export type EditableTransaction = {
 export const SELECT_CLS = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring';
 
 function SubmitButton() {
+  const t = useTranslations('common');
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Saqlash
+      {t('save')}
     </Button>
   );
 }
@@ -54,6 +57,10 @@ export function TransactionDialog({
   savedCategories: Category[];
   transaction?: EditableTransaction;
 }) {
+  const t = useTranslations('transactions');
+  const tc = useTranslations('common');
+  const tCat = useTranslations('defaultCategories');
+  const locale = useLocale();
   const isEdit = !!transaction;
   const initialWalletId = transaction?.walletId ?? wallets[0]?.id ?? '';
   const initialToWalletId =
@@ -99,7 +106,7 @@ export function TransactionDialog({
   // Takrorlash faqat yangi kirim/chiqimda; keyingi sana formada izoh sifatida ko'rsatiladi
   const canRepeat = !isEdit && type !== 'TRANSFER';
   const nextRepeat = canRepeat && repeat && date
-    ? new Intl.DateTimeFormat('uz-UZ', { timeZone: APP_TZ, day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Intl.DateTimeFormat(intlLocale(locale), { timeZone: APP_TZ, day: 'numeric', month: 'long', year: 'numeric' })
         .format(occurrenceDate(dayStart(date), repeat, 1))
     : null;
 
@@ -120,8 +127,8 @@ export function TransactionDialog({
     setOpen(next);
   }
 
-  function changeType(t: TxType) {
-    setType(t);
+  function changeType(next: TxType) {
+    setType(next);
     setSelectedCategory('');
   }
 
@@ -141,7 +148,7 @@ export function TransactionDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Tranzaksiyani tahrirlash' : 'Yangi tranzaksiya'}</DialogTitle>
+          <DialogTitle>{isEdit ? t('editTitle') : t('newTitle')}</DialogTitle>
         </DialogHeader>
         <form action={action} className="space-y-4">
           <input type="hidden" name="type" value={type} />
@@ -155,17 +162,17 @@ export function TransactionDialog({
 
           {/* Tur (tahrirlashda o'zgarmaydi) */}
           <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
-            {(['EXPENSE', 'INCOME', 'TRANSFER'] as const).map((t) => (
+            {(['EXPENSE', 'INCOME', 'TRANSFER'] as const).map((value) => (
               <button
-                key={t}
+                key={value}
                 type="button"
-                onClick={() => changeType(t)}
-                disabled={isEdit && t !== type}
+                onClick={() => changeType(value)}
+                disabled={isEdit && value !== type}
                 className={`rounded-md py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                  type === t ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  type === value ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {t === 'INCOME' ? 'Daromad' : t === 'EXPENSE' ? 'Xarajat' : "O'tkazma"}
+                {t(value.toLowerCase())}
               </button>
             ))}
           </div>
@@ -177,7 +184,7 @@ export function TransactionDialog({
               <input type="hidden" name="toWalletId" value={toWalletId} />
 
               <div className="space-y-2">
-                <Label>Qaysi hamyondan</Label>
+                <Label>{t('fromWallet')}</Label>
                 <select
                   value={walletId}
                   onChange={(e) => changeFromWallet(e.target.value)}
@@ -190,7 +197,7 @@ export function TransactionDialog({
               </div>
 
               <div className="space-y-2">
-                <Label>Qaysi hamyonga</Label>
+                <Label>{t('toWallet')}</Label>
                 <select
                   value={toWalletId}
                   onChange={(e) => setToWalletId(e.target.value)}
@@ -204,7 +211,7 @@ export function TransactionDialog({
 
               {needsRate && (
                 <div className="space-y-2">
-                  <Label htmlFor="tx-rate">Valyuta kursi</Label>
+                  <Label htmlFor="tx-rate">{t('rate')}</Label>
                   <div className="flex items-center gap-2">
                     <span className="shrink-0 text-sm font-medium">1 {higherCurrency} =</span>
                     <Input
@@ -225,7 +232,7 @@ export function TransactionDialog({
             </>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor="tx-wallet">Hamyon</Label>
+              <Label htmlFor="tx-wallet">{t('wallet')}</Label>
               <select
                 id="tx-wallet"
                 value={walletId}
@@ -243,7 +250,7 @@ export function TransactionDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="tx-amount">
-                Miqdor{fromWallet ? ` (${fromWallet.currency})` : ''}
+                {t('amount')}{fromWallet ? ` (${fromWallet.currency})` : ''}
               </Label>
               <Input
                 id="tx-amount"
@@ -257,7 +264,7 @@ export function TransactionDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tx-date">Sana</Label>
+              <Label htmlFor="tx-date">{t('date')}</Label>
               <Input
                 id="tx-date"
                 name="date"
@@ -273,7 +280,7 @@ export function TransactionDialog({
           {/* Takrorlash */}
           {canRepeat && (
             <div className="space-y-2">
-              <Label htmlFor="tx-repeat">Takrorlash</Label>
+              <Label htmlFor="tx-repeat">{t('repeat')}</Label>
               <select
                 id="tx-repeat"
                 name="repeat"
@@ -281,14 +288,14 @@ export function TransactionDialog({
                 onChange={(e) => setRepeat(e.target.value as Frequency | '')}
                 className={SELECT_CLS}
               >
-                <option value="">Takrorlanmaydi</option>
+                <option value="">{t('noRepeat')}</option>
                 {FREQUENCIES.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
+                  <option key={f} value={f}>{t(`freq.${f}`)}</option>
                 ))}
               </select>
               {nextRepeat && (
                 <p className="text-xs text-muted-foreground">
-                  Keyingi yozuv {nextRepeat} kuni avtomatik qo&apos;shiladi. To&apos;xtatish — Tranzaksiyalar sahifasida.
+                  {t('repeatHint', { date: nextRepeat })}
                 </p>
               )}
             </div>
@@ -297,7 +304,7 @@ export function TransactionDialog({
           {/* Kategoriya */}
           {type !== 'TRANSFER' && (
             <div className="space-y-2">
-              <Label htmlFor="tx-category">Kategoriya</Label>
+              <Label htmlFor="tx-category">{t('category')}</Label>
               <div className="flex gap-2">
                 <div
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
@@ -314,9 +321,9 @@ export function TransactionDialog({
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className={`flex-1 ${SELECT_CLS}`}
                 >
-                  <option value="">— Tanlang —</option>
+                  <option value="">{tc('select')}</option>
                   {allCategories.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat} value={cat}>{categoryName(cat, tCat)}</option>
                   ))}
                 </select>
                 <AddCategoryDialog
@@ -331,11 +338,11 @@ export function TransactionDialog({
 
           {/* Izoh */}
           <div className="space-y-2">
-            <Label htmlFor="tx-desc">Izoh (ixtiyoriy)</Label>
+            <Label htmlFor="tx-desc">{t('note')}</Label>
             <Input
               id="tx-desc"
               name="description"
-              placeholder="Qo'shimcha ma'lumot..."
+              placeholder={t('notePlaceholder')}
               defaultValue={transaction?.description ?? ''}
             />
           </div>

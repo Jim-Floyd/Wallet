@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 const CURRENCIES = ['UZS', 'USD', 'EUR', 'RUB'];
 
@@ -17,22 +18,24 @@ interface Props {
 }
 
 function SubmitButton() {
+  const t = useTranslations('common');
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Saqlash
+      {t('save')}
     </Button>
   );
 }
 
 export function ProfileForm({ name, email, currency }: Props) {
+  const t = useTranslations('settings');
   const [state, action] = useFormState<SettingsState, FormData>(updateProfile, null);
 
   return (
     <form action={action} className="space-y-4">
       {state?.error && <Alert variant="destructive" className="text-sm py-2">{state.error}</Alert>}
-      {state?.success && <Alert className="text-sm py-2 border-green-500 text-green-700">Saqlandi</Alert>}
+      {state?.success && <Alert className="text-sm py-2 border-green-500 text-green-700">{t('saved')}</Alert>}
 
       <div className="space-y-2">
         <Label>Email</Label>
@@ -40,12 +43,12 @@ export function ProfileForm({ name, email, currency }: Props) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="name">Ism</Label>
+        <Label htmlFor="name">{t('name')}</Label>
         <Input id="name" name="name" defaultValue={name} required />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="currency">Asosiy valyuta</Label>
+        <Label htmlFor="currency">{t('mainCurrency')}</Label>
         <select
           id="currency"
           name="currency"

@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2, Plus, Pencil } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { categoryName } from '@/lib/category-icons';
 
 const CURRENCIES = ['UZS', 'USD', 'EUR', 'RUB'];
 
@@ -27,16 +29,19 @@ interface Props {
 }
 
 function SubmitButton() {
+  const t = useTranslations('common');
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Saqlash
+      {t('save')}
     </Button>
   );
 }
 
 export function BudgetDialog({ month, year, categories, budget }: Props) {
+  const t = useTranslations('budget');
+  const tCat = useTranslations('defaultCategories');
   const [open, setOpen] = useState(false);
   const [state, action] = useFormState<BudgetState, FormData>(upsertBudget, null);
 
@@ -51,14 +56,14 @@ export function BudgetDialog({ month, year, categories, budget }: Props) {
       <DialogTrigger render={
         isEdit
           ? <Button variant="ghost" size="icon" className="h-7 w-7" />
-          : <Button size="sm"><Plus className="mr-1 h-4 w-4" />Byudjet qo&apos;shish</Button>
+          : <Button size="sm"><Plus className="mr-1 h-4 w-4" />{t('add')}</Button>
       }>
         {isEdit && <Pencil className="h-3.5 w-3.5" />}
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Byudjetni tahrirlash' : 'Yangi byudjet'}</DialogTitle>
+          <DialogTitle>{isEdit ? t('editTitle') : t('newTitle')}</DialogTitle>
         </DialogHeader>
         <form action={action} className="space-y-4">
           <input type="hidden" name="month" value={month} />
@@ -69,7 +74,7 @@ export function BudgetDialog({ month, year, categories, budget }: Props) {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="category">Kategoriya</Label>
+            <Label htmlFor="category">{t('category')}</Label>
             <input
               id="category"
               name="category"
@@ -80,12 +85,12 @@ export function BudgetDialog({ month, year, categories, budget }: Props) {
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
             />
             <datalist id="cat-list">
-              {categories.map((c) => <option key={c} value={c} />)}
+              {categories.map((c) => <option key={c} value={c} label={categoryName(c, tCat)} />)}
             </datalist>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount">Limit miqdori</Label>
+            <Label htmlFor="amount">{t('limitAmount')}</Label>
             <Input
               id="amount"
               name="amount"
@@ -98,7 +103,7 @@ export function BudgetDialog({ month, year, categories, budget }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="currency">Valyuta</Label>
+            <Label htmlFor="currency">{t('currency')}</Label>
             <select
               id="currency"
               name="currency"

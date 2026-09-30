@@ -7,7 +7,7 @@ export function parseFormDate(formData: FormData, field = 'date'): Date | undefi
   const today = formData.get('today') as string | null;
   const originalDate = formData.get('originalDate') as string | null;
   if (!date || date === originalDate) return undefined;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Sana noto'g'ri" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: 'invalidDate' }; // "errors" tarjima kaliti
   if (date === today) return new Date();
   return new Date(`${date}T12:00:00`);
 }

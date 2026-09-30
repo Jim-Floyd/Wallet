@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { getTranslations } from 'next-intl/server';
 import { balanceEffects, balanceUpdates, reverseEffects } from '@/lib/balance';
 import { parseFormDate } from '@/lib/form-date';
 import { debtProgress, initialTxType, repayTxType } from '@/lib/debt';
@@ -21,13 +22,14 @@ async function getUserId() {
 function parseDueDate(formData: FormData): Date | null | { error: string } {
   const due = formData.get('dueDate') as string | null;
   if (!due) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return { error: "Muddat sanasi noto'g'ri" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return { error: 'invalidDueDate' };
   return new Date(`${due}T12:00:00`);
 }
 
 export async function addDebt(_: DebtState, formData: FormData): Promise<DebtState> {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const type = formData.get('type') as 'LENT' | 'BORROWED';
   const person = ((formData.get('person') as string) ?? '').trim();
@@ -36,23 +38,23 @@ export async function addDebt(_: DebtState, formData: FormData): Promise<DebtSta
   const walletId = (formData.get('walletId') as string) || null;
   const description = ((formData.get('description') as string) ?? '').trim() || null;
 
-  if (type !== 'LENT' && type !== 'BORROWED') return { error: "Qarz turini tanlang" };
-  if (!person) return { error: 'Kim bilan ekanini kiriting' };
-  if (!amount || isNaN(amount) || amount <= 0) return { error: "Miqdor 0 dan katta bo'lishi kerak" };
+  if (type !== 'LENT' && type !== 'BORROWED') return { error: t('selectDebtType') };
+  if (!person) return { error: t('personRequired') };
+  if (!amount || isNaN(amount) || amount <= 0) return { error: t('amountPositive') };
 
   const date = parseFormDate(formData);
-  if (date && !(date instanceof Date)) return date;
+  if (date && !(date instanceof Date)) return { error: t(date.error) };
   const dueDate = parseDueDate(formData);
-  if (dueDate && !(dueDate instanceof Date)) return dueDate;
+  if (dueDate && !(dueDate instanceof Date)) return { error: t(dueDate.error) };
 
   // Hamyon tanlansa — pul haqiqatan harakatlanadi; tanlanmasa — faqat yozuv (masalan, eski qarz)
   let currency = formData.get('currency') as string;
   if (walletId) {
     const wallet = await prisma.wallet.findFirst({ where: { id: walletId, userId } });
-    if (!wallet) return { error: 'Hamyon topilmadi' };
+    if (!wallet) return { error: t('walletNotFound') };
     currency = wallet.currency;
   } else if (!CURRENCIES.includes(currency)) {
-    return { error: 'Valyutani tanlang' };
+    return { error: t('selectCurrency') };
   }
 
   const txType = initialTxType(type);
@@ -81,18 +83,19 @@ export async function addDebt(_: DebtState, formData: FormData): Promise<DebtSta
 export async function updateDebt(_: DebtState, formData: FormData): Promise<DebtState> {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const id = formData.get('id') as string;
   const person = ((formData.get('person') as string) ?? '').trim();
   const phone = ((formData.get('phone') as string) ?? '').trim() || null;
   const description = ((formData.get('description') as string) ?? '').trim() || null;
-  if (!person) return { error: 'Kim bilan ekanini kiriting' };
+  if (!person) return { error: t('personRequired') };
 
   const dueDate = parseDueDate(formData);
-  if (dueDate && !(dueDate instanceof Date)) return dueDate;
+  if (dueDate && !(dueDate instanceof Date)) return { error: t(dueDate.error) };
 
   const debt = await prisma.debt.findFirst({ where: { id, userId }, include: { transactions: true } });
-  if (!debt) return { error: 'Qarz topilmadi' };
+  if (!debt) return { error: t('debtNotFound') };
 
   // Boshlang'ich yozuv hamyonini almashtirish ('' — hamyonsiz, faqat yozuv)
   const txType = initialTxType(debt.type);
@@ -103,9 +106,9 @@ export async function updateDebt(_: DebtState, formData: FormData): Promise<Debt
   if (newWalletId !== (initial?.walletId ?? null)) {
     if (newWalletId) {
       const wallet = await prisma.wallet.findFirst({ where: { id: newWalletId, userId } });
-      if (!wallet) return { error: 'Hamyon topilmadi' };
+      if (!wallet) return { error: t('walletNotFound') };
       if (wallet.currency !== debt.currency) {
-        return { error: `Hamyon valyutasi qarz valyutasi (${debt.currency}) bilan bir xil bo'lishi kerak` };
+        return { error: t('walletCurrencyMismatch', { currency: debt.currency }) };
       }
     }
 
@@ -141,33 +144,34 @@ export async function updateDebt(_: DebtState, formData: FormData): Promise<Debt
 export async function addDebtPayment(_: DebtState, formData: FormData): Promise<DebtState> {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const debtId = formData.get('debtId') as string;
   const walletId = formData.get('walletId') as string;
   const amount = parseFloat(formData.get('amount') as string);
   const description = ((formData.get('description') as string) ?? '').trim() || null;
 
-  if (!walletId) return { error: 'Hamyonni tanlang' };
-  if (!amount || isNaN(amount) || amount <= 0) return { error: "Miqdor 0 dan katta bo'lishi kerak" };
+  if (!walletId) return { error: t('selectWallet') };
+  if (!amount || isNaN(amount) || amount <= 0) return { error: t('amountPositive') };
 
   const date = parseFormDate(formData);
-  if (date && !(date instanceof Date)) return date;
+  if (date && !(date instanceof Date)) return { error: t(date.error) };
 
   const debt = await prisma.debt.findFirst({
     where: { id: debtId, userId },
     include: { transactions: { select: { type: true, amount: true } } },
   });
-  if (!debt) return { error: 'Qarz topilmadi' };
+  if (!debt) return { error: t('debtNotFound') };
 
   const wallet = await prisma.wallet.findFirst({ where: { id: walletId, userId } });
-  if (!wallet) return { error: 'Hamyon topilmadi' };
+  if (!wallet) return { error: t('walletNotFound') };
   if (wallet.currency !== debt.currency) {
-    return { error: `Hamyon valyutasi qarz valyutasi (${debt.currency}) bilan bir xil bo'lishi kerak` };
+    return { error: t('walletCurrencyMismatch', { currency: debt.currency }) };
   }
 
   const { remaining } = debtProgress(debt);
   if (amount > remaining + 0.001) {
-    return { error: `Qolgan qarz: ${remaining} ${debt.currency}. Undan ko'p kiritib bo'lmaydi` };
+    return { error: t('paymentExceedsRemaining', { amount: remaining, currency: debt.currency }) };
   }
 
   const txType = repayTxType(debt.type);
@@ -190,15 +194,16 @@ export async function addDebtPayment(_: DebtState, formData: FormData): Promise<
 export async function deleteDebtPayment(_: DebtState, formData: FormData): Promise<DebtState> {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const id = formData.get('id') as string;
   const tx = await prisma.transaction.findFirst({
     where: { id, userId, debtId: { not: null } },
     include: { debt: { select: { type: true } } },
   });
-  if (!tx || !tx.debt) return { error: 'Yozuv topilmadi' };
+  if (!tx || !tx.debt) return { error: t('recordNotFound') };
   if (tx.type !== repayTxType(tx.debt.type)) {
-    return { error: "Boshlang'ich qarz yozuvini o'chirish uchun qarzning o'zini o'chiring" };
+    return { error: t('deleteInitialDebtTx') };
   }
 
   await prisma.$transaction([
@@ -214,10 +219,11 @@ export async function deleteDebtPayment(_: DebtState, formData: FormData): Promi
 export async function deleteDebt(_: DebtState, formData: FormData): Promise<DebtState> {
   const userId = await getUserId();
   if (!userId) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const id = formData.get('id') as string;
   const debt = await prisma.debt.findFirst({ where: { id, userId }, include: { transactions: true } });
-  if (!debt) return { error: 'Qarz topilmadi' };
+  if (!debt) return { error: t('debtNotFound') };
 
   await prisma.$transaction([
     prisma.transaction.deleteMany({ where: { debtId: id, userId } }),

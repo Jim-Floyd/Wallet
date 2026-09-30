@@ -3,15 +3,13 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-const MONTHS = [
-  'Yanvar','Fevral','Mart','Aprel','May','Iyun',
-  'Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr',
-];
+import { useLocale } from 'next-intl';
+import { intlLocale } from '@/lib/intl';
 
 interface Props { month: number; year: number }
 
 export function BudgetMonthNav({ month, year }: Props) {
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -32,7 +30,7 @@ export function BudgetMonthNav({ month, year }: Props) {
         <ChevronLeft className="h-4 w-4" />
       </Button>
       <span className="min-w-32 text-center font-semibold">
-        {MONTHS[month - 1]} {year}
+        {new Intl.DateTimeFormat(intlLocale(locale), { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))}
       </span>
       <Button variant="outline" size="icon" className="h-8 w-8" onClick={next}>
         <ChevronRight className="h-4 w-4" />

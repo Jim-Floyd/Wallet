@@ -11,13 +11,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { WalletStyleFields } from '@/components/wallets/wallet-style-fields';
 import { WALLET_COLORS } from '@/lib/wallet-icons';
 import { Loader2, Pencil } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 function SubmitButton() {
+  const t = useTranslations('common');
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Saqlash
+      {t('save')}
     </Button>
   );
 }
@@ -29,6 +31,7 @@ export function EditWalletDialog({
   className?: string;
   wallet: { id: string; name: string; currency: string; color: string | null; icon: string | null; isDefault: boolean };
 }) {
+  const t = useTranslations('wallets');
   const [open, setOpen] = useState(false);
   const [color, setColor] = useState(wallet.color ?? WALLET_COLORS[0]);
   const [icon, setIcon] = useState<string | null>(wallet.icon);
@@ -55,7 +58,7 @@ export function EditWalletDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Hamyonni tahrirlash</DialogTitle>
+          <DialogTitle>{t('editTitle')}</DialogTitle>
         </DialogHeader>
         <form action={action} className="space-y-4">
           <input type="hidden" name="id" value={wallet.id} />
@@ -65,7 +68,7 @@ export function EditWalletDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="edit-wallet-name">Nomi</Label>
+            <Label htmlFor="edit-wallet-name">{t('name')}</Label>
             <Input id="edit-wallet-name" name="name" defaultValue={wallet.name} required />
           </div>
 
@@ -81,9 +84,9 @@ export function EditWalletDialog({
             <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm">
               <input type="checkbox" name="makeDefault" className="mt-0.5 h-4 w-4 accent-primary" />
               <span>
-                <span className="font-medium">Asosiy hamyon qilish</span>
+                <span className="font-medium">{t('makeDefault')}</span>
                 <span className="block text-xs text-muted-foreground">
-                  Asosiy hamyon ro&apos;yxatda birinchi turadi va uni o&apos;chirib bo&apos;lmaydi.
+                  {t('makeDefaultHint')}
                 </span>
               </span>
             </label>

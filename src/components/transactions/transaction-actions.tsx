@@ -3,6 +3,7 @@ import { ExternalLink } from 'lucide-react';
 import { TransactionDialog, type EditableTransaction } from '@/components/transactions/transaction-dialog';
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button';
 import { deleteTransaction } from '@/lib/actions/transaction';
+import { getTranslations } from 'next-intl/server';
 
 type Tx = {
   id: string;
@@ -19,7 +20,7 @@ type Tx = {
 
 // Tranzaksiya qatoridagi tahrirlash/o'chirish tugmalari.
 // Qarz yozuvlari Qarzlar sahifasida boshqariladi — ular uchun havola.
-export function TransactionActions({
+export async function TransactionActions({
   tx,
   locale,
   wallets,
@@ -30,11 +31,13 @@ export function TransactionActions({
   wallets: { id: string; name: string; currency: string }[];
   categories: { id: string; name: string; icon: string | null }[];
 }) {
+  const t = await getTranslations('transactions');
+
   if (tx.debtId) {
     return (
       <Link
         href={`/${locale}/debts`}
-        title="Qarzlar sahifasida boshqarish"
+        title={t('manageInDebts')}
         className="flex h-7 w-14 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
       >
         <ExternalLink className="h-3.5 w-3.5" />
@@ -62,8 +65,8 @@ export function TransactionActions({
       <ConfirmDeleteButton
         id={tx.id}
         action={deleteTransaction}
-        title="Tranzaksiyani o'chirish"
-        description="Tranzaksiya o'chiriladi va hamyon balansi avvalgi holatiga qaytariladi."
+        title={t('deleteTitle')}
+        description={t('deleteDescription')}
       />
     </div>
   );

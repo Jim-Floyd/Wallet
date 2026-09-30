@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { getTranslations } from 'next-intl/server';
 import { CATEGORY_ICON_KEYS } from '@/lib/category-icons';
 
 type CategoryResult = { id: string; name: string; icon: string | null };
@@ -12,9 +13,10 @@ export async function createCategory(name: string, icon?: string | null): Promis
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
+  const t = await getTranslations('errors');
 
   const trimmed = name.trim();
-  if (!trimmed) return { error: 'Nom kiritilishi shart' };
+  if (!trimmed) return { error: t('nameRequired') };
   const validIcon = icon && CATEGORY_ICON_KEYS.includes(icon) ? icon : null;
 
   const category = await prisma.category.upsert({

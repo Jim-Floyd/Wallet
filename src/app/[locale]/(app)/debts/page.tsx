@@ -10,14 +10,10 @@ import { ConfirmDeleteButton } from '@/components/confirm-delete-button';
 import { deleteDebt, deleteDebtPayment } from '@/lib/actions/debt';
 import { debtProgress, initialTxType, repayTxType } from '@/lib/debt';
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
+import { formatMoney } from '@/lib/intl';
+import { formatDay } from '@/lib/days';
 
-function formatAmount(n: number, currency: string) {
-  return `${new Intl.NumberFormat('uz-UZ').format(n)} ${currency}`;
-}
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
-}
 
 function sumByCurrency(items: { currency: string; value: number }[]) {
   const map = new Map<string, number>();
@@ -35,6 +31,9 @@ export default async function DebtsPage({
   const { locale } = await params;
   const { status } = await searchParams;
   const showClosed = status === 'closed';
+  const t = await getTranslations('debts');
+  const formatAmount = (n: number, currency: string) => formatMoney(n, currency, locale);
+  const formatDate = (date: Date) => formatDay(date, locale);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -75,7 +74,7 @@ export default async function DebtsPage({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Qarzlar</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <DebtDialog wallets={walletList} />
       </div>
 
@@ -83,7 +82,7 @@ export default async function DebtsPage({
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Menga qarzdorlar</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('owedToMeTotal')}</CardTitle>
             <ArrowDownLeft className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -98,7 +97,7 @@ export default async function DebtsPage({
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Mening qarzlarim</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('iOweTotal')}</CardTitle>
             <ArrowUpRight className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
@@ -116,8 +115,8 @@ export default async function DebtsPage({
       {/* Ochiq / Yopilgan */}
       <div className="flex w-fit gap-1 rounded-lg bg-muted p-1">
         {[
-          { href: `/${locale}/debts`, label: `Ochiq (${open.length})`, active: !showClosed },
-          { href: `/${locale}/debts?status=closed`, label: `Yopilgan (${debts.length - open.length})`, active: showClosed },
+          { href: `/${locale}/debts`, label: t('tabOpen', { count: open.length }), active: !showClosed },
+          { href: `/${locale}/debts?status=closed`, label: t('tabClosed', { count: debts.length - open.length }), active: showClosed },
         ].map((tab) => (
           <Link
             key={tab.href}
@@ -134,7 +133,7 @@ export default async function DebtsPage({
       {visible.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            {showClosed ? "Yopilgan qarzlar yo'q" : "Ochiq qarzlar yo'q"}
+            {showClosed ? t('noClosed') : t('noOpen')}
           </CardContent>
         </Card>
       ) : (
@@ -154,14 +153,14 @@ export default async function DebtsPage({
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold">{d.person}</p>
                         <Badge variant="secondary" className={isLent ? 'text-green-700' : 'text-red-700'}>
-                          {isLent ? 'Menga qarzdor' : 'Mening qarzim'}
+                          {isLent ? t('owedToMe') : t('iOwe')}
                         </Badge>
-                        {overdue && <Badge variant="destructive">Muddati o&apos;tgan</Badge>}
+                        {overdue && <Badge variant="destructive">{t('overdue')}</Badge>}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {formatDate(d.date)}
-                        {' • '}{d.transactions.find(t => t.type === initialTxType(d.type))?.wallet.name ?? 'Hamyonsiz'}
-                        {d.dueDate && <> • Muddat: <span className={overdue ? 'text-red-600 font-medium' : ''}>{formatDate(d.dueDate)}</span></>}
+                        {' • '}{d.transactions.find(t => t.type === initialTxType(d.type))?.wallet.name ?? t('noWallet')}
+                        {d.dueDate && <> • {t('due')}: <span className={overdue ? 'text-red-600 font-medium' : ''}>{formatDate(d.dueDate)}</span></>}
                         {d.phone && <> • {d.phone}</>}
                       </p>
                       {d.description && <p className="text-xs text-muted-foreground">{d.description}</p>}
@@ -190,8 +189,8 @@ export default async function DebtsPage({
                       <ConfirmDeleteButton
                         id={d.id}
                         action={deleteDebt}
-                        title="Qarzni o'chirish"
-                        description="Qarz va unga bog'liq barcha yozuvlar o'chiriladi, hamyon balanslari avvalgi holatiga qaytariladi."
+                        title={t('deleteTitle')}
+                        description={t('deleteDescription')}
                       />
                     </div>
                   </div>
@@ -199,10 +198,10 @@ export default async function DebtsPage({
                   <div className="space-y-1">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        {isLent ? 'Qaytarildi' : "To'landi"}: {formatAmount(paid, d.currency)} / {formatAmount(amount, d.currency)}
+                        {isLent ? t('repaid') : t('paid')}: {formatAmount(paid, d.currency)} / {formatAmount(amount, d.currency)}
                       </span>
                       <span className={`font-semibold ${closed ? 'text-green-600' : ''}`}>
-                        {closed ? 'Yopildi' : `Qoldi: ${formatAmount(remaining, d.currency)}`}
+                        {closed ? t('closed') : t('left', { amount: formatAmount(remaining, d.currency) })}
                       </span>
                     </div>
                     <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
@@ -216,7 +215,7 @@ export default async function DebtsPage({
                   {payments.length > 0 && (
                     <details className="text-sm">
                       <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                        {isLent ? 'Qaytarishlar' : "To'lovlar"} ({payments.length})
+                        {isLent ? t('repayments', { count: payments.length }) : t('payments', { count: payments.length })}
                       </summary>
                       <div className="mt-2 divide-y rounded-lg border">
                         {payments.map((p) => (
@@ -230,8 +229,8 @@ export default async function DebtsPage({
                             <ConfirmDeleteButton
                               id={p.id}
                               action={deleteDebtPayment}
-                              title="Yozuvni o'chirish"
-                              description="Bu qaytarish yozuvi o'chiriladi va hamyon balansi avvalgi holatiga qaytariladi."
+                              title={t('deletePaymentTitle')}
+                              description={t('deletePaymentDescription')}
                             />
                           </div>
                         ))}

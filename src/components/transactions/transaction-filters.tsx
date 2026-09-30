@@ -3,18 +3,15 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useCallback } from 'react';
 import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 type Wallet = { id: string; name: string; currency: string };
 
-const TYPES = [
-  { value: '', label: 'Barchasi' },
-  { value: 'EXPENSE', label: 'Xarajat' },
-  { value: 'INCOME', label: 'Daromad' },
-  { value: 'TRANSFER', label: "O'tkazma" },
-  { value: 'DEBT', label: 'Qarz' },
-];
+// Nomlari tarjimada: transactions.filter.<value || all>
+const TYPES = ['', 'EXPENSE', 'INCOME', 'TRANSFER', 'DEBT'];
 
 export function TransactionFilters({ wallets }: { wallets: Wallet[] }) {
+  const t = useTranslations('transactions');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -40,17 +37,17 @@ export function TransactionFilters({ wallets }: { wallets: Wallet[] }) {
     <div className="flex flex-wrap items-end gap-3">
       {/* Tur */}
       <div className="flex gap-1 rounded-lg bg-muted p-1">
-        {TYPES.map((t) => (
+        {TYPES.map((value) => (
           <button
-            key={t.value}
-            onClick={() => set('type', t.value)}
+            key={value}
+            onClick={() => set('type', value)}
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              type === t.value
+              type === value
                 ? 'bg-background shadow-sm text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t.label}
+            {t(`filter.${value || 'all'}`)}
           </button>
         ))}
       </div>
@@ -61,7 +58,7 @@ export function TransactionFilters({ wallets }: { wallets: Wallet[] }) {
         onChange={(e) => set('walletId', e.target.value)}
         className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
       >
-        <option value="">Barcha hamyonlar</option>
+        <option value="">{t('allWallets')}</option>
         {wallets.map((w) => (
           <option key={w.id} value={w.id}>{w.name} ({w.currency})</option>
         ))}
@@ -91,7 +88,7 @@ export function TransactionFilters({ wallets }: { wallets: Wallet[] }) {
           className="flex h-9 items-center gap-1 rounded-lg border border-input px-3 text-xs text-muted-foreground hover:text-foreground"
         >
           <X className="h-3 w-3" />
-          Tozalash
+          {t('clearFilters')}
         </button>
       )}
     </div>
