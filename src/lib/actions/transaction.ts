@@ -8,12 +8,11 @@ import { parseFormDate } from '@/lib/form-date';
 import { dayKey, dayStart } from '@/lib/days';
 import { isFrequency, occurrenceDate } from '@/lib/recurring';
 import { getTranslations } from 'next-intl/server';
+import { transferToAmount } from '@/lib/currency';
 
 export type TransactionState = { error?: string; success?: boolean } | null;
 
 type TxType = 'INCOME' | 'EXPENSE' | 'TRANSFER';
-
-const CURRENCY_RANK: Record<string, number> = { UZS: 1, RUB: 2, USD: 3, EUR: 4 };
 
 type TxData = {
   walletId: string;
@@ -73,9 +72,7 @@ async function parseTransactionForm(
   const rate = parseFloat(formData.get('rate') as string);
   if (!rate || rate <= 0) return { error: 'enterRate' };
 
-  const fromRank = CURRENCY_RANK[wallet.currency] ?? 1;
-  const toRank = CURRENCY_RANK[toWallet.currency] ?? 1;
-  const toAmount = fromRank >= toRank ? amount * rate : amount / rate;
+  const toAmount = transferToAmount(amount, wallet.currency, toWallet.currency, rate);
 
   return {
     walletId, toWalletId, amount, currency: wallet.currency,

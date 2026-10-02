@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { addDebtPayment, type DebtState } from '@/lib/actions/debt';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/amount-input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -86,13 +87,9 @@ export function DebtPaymentDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="pay-amount">{t('amount')} ({debt.currency})</Label>
-                <Input
+                <AmountInput
                   id="pay-amount"
                   name="amount"
-                  type="number"
-                  min="0.01"
-                  max={debt.remaining}
-                  step="0.01"
                   defaultValue={debt.remaining}
                   required
                 />

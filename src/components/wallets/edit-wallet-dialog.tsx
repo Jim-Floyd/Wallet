@@ -10,6 +10,8 @@ import { Alert } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { WalletStyleFields } from '@/components/wallets/wallet-style-fields';
 import { WALLET_COLORS } from '@/lib/wallet-icons';
+import { WalletKindFields } from '@/components/wallets/wallet-kind-fields';
+import type { WalletKindValue } from '@/lib/credit';
 import { Loader2, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -29,12 +31,16 @@ export function EditWalletDialog({
   className,
 }: {
   className?: string;
-  wallet: { id: string; name: string; currency: string; color: string | null; icon: string | null; isDefault: boolean };
+  wallet: {
+    id: string; name: string; currency: string; color: string | null; icon: string | null; isDefault: boolean;
+    kind: WalletKindValue; creditLimit: number | null;
+  };
 }) {
   const t = useTranslations('wallets');
   const [open, setOpen] = useState(false);
   const [color, setColor] = useState(wallet.color ?? WALLET_COLORS[0]);
   const [icon, setIcon] = useState<string | null>(wallet.icon);
+  const [kind, setKind] = useState<WalletKindValue>(wallet.kind);
   const [state, action] = useFormState<WalletState, FormData>(updateWallet, null);
 
   useEffect(() => {
@@ -45,6 +51,7 @@ export function EditWalletDialog({
     if (next) {
       setColor(wallet.color ?? WALLET_COLORS[0]);
       setIcon(wallet.icon);
+      setKind(wallet.kind);
     }
     setOpen(next);
   }
@@ -71,6 +78,8 @@ export function EditWalletDialog({
             <Label htmlFor="edit-wallet-name">{t('name')}</Label>
             <Input id="edit-wallet-name" name="name" defaultValue={wallet.name} required />
           </div>
+
+          <WalletKindFields kind={kind} currency={wallet.currency} defaultLimit={wallet.creditLimit} onKindChange={setKind} />
 
           <WalletStyleFields
             color={color}

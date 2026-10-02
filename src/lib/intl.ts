@@ -8,5 +8,11 @@ export function formatMoney(amount: number, currency: string, locale: string) {
   return `${new Intl.NumberFormat(intlLocale(locale), { maximumFractionDigits: 2 }).format(Math.abs(amount))} ${currency}`;
 }
 
+// Qoldiq kabi ishorasi o'zi ma'noga ega summa: manfiy bo'lsa "-" bilan (masalan kredit karta qarzi)
+export function formatMoneySigned(amount: number, currency: string, locale: string) {
+  const rounded = Math.round(amount * 100) / 100;
+  return `${rounded < 0 ? '-' : ''}${formatMoney(rounded, currency, locale)}`;
+}
+
 // next-intl tarjima funksiyasining sof lib'larga uzatiladigan soddalashtirilgan turi
 export type Translate = (key: string, values?: Record<string, string | number>) => string;

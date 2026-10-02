@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { updateRecurring, type TransactionState } from '@/lib/actions/transaction';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/amount-input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -104,12 +105,9 @@ export function RecurringDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="rec-amount">{t('amount')}{wallet ? ` (${wallet.currency})` : ''}</Label>
-              <Input
+              <AmountInput
                 id="rec-amount"
                 name="amount"
-                type="number"
-                min="0.01"
-                step="0.01"
                 defaultValue={rule.amount}
                 required
               />

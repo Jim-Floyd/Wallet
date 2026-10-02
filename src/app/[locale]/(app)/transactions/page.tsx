@@ -9,11 +9,14 @@ import { debtTxLabel, txTypeWhere } from '@/lib/debt';
 import { TransactionFilters } from '@/components/transactions/transaction-filters';
 import { Pagination } from '@/components/transactions/pagination';
 import { ExportButton } from '@/components/transactions/export-button';
+import { ImportDialog } from '@/components/transactions/import-dialog';
 import { Suspense } from 'react';
 import { dayEnd, dayKey, dayLabel, dayStart, formatDay } from '@/lib/days';
+import { balanceEffects } from '@/lib/balance';
+import { walletOption } from '@/lib/credit';
 import { processRecurring } from '@/lib/recurring-server';
 import { getTranslations } from 'next-intl/server';
-import { formatMoney } from '@/lib/intl';
+import { formatMoney, formatMoneySigned } from '@/lib/intl';
 import { categoryName } from '@/lib/category-icons';
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button';
 import { deleteRecurring } from '@/lib/actions/transaction';
@@ -51,11 +54,13 @@ export default async function TransactionsPage({
   const where = {
     userId: user.id,
     ...txTypeWhere(filters.type),
-    ...(filters.walletId && { walletId: filters.walletId }),
+    // Hamyon filtri: shu hamyondan chiqqan va shu hamyonga o'tkazma bo'lib kelgan yozuvlar
+    ...(filters.walletId && { OR: [{ walletId: filters.walletId }, { toWalletId: filters.walletId }] }),
+    // Kunlar Toshkent vaqti bo'yicha: from kun boshidan, to kun oxirigacha
     ...((filters.from || filters.to) && {
       date: {
-        ...(filters.from && { gte: new Date(filters.from) }),
-        ...(filters.to && { lte: new Date(filters.to + 'T23:59:59') }),
+        ...(filters.from && { gte: dayStart(filters.from) }),
+        ...(filters.to && { lt: dayEnd(filters.to) }),
       },
     }),
   };
@@ -88,7 +93,7 @@ export default async function TransactionsPage({
     }),
   ]);
 
-  const walletList = wallets.map(w => ({ id: w.id, name: w.name, currency: w.currency }));
+  const walletList = wallets.map(walletOption);
   const categoryList = categories.map(c => ({ id: c.id, name: c.name, icon: c.icon }));
   const categoryIcons = Object.fromEntries(categories.map(c => [c.name, c.icon]));
 
@@ -122,9 +127,43 @@ export default async function TransactionsPage({
     }
   }
 
+  // Kun oxiridagi qoldiq — hozirgi balansdan o'sha kundan keyingi barcha yozuvlar ta'sirini qaytarib hisoblanadi.
+  // Hamyon tanlangan bo'lsa — faqat o'sha hamyon, aks holda barcha hamyonlar valyuta bo'yicha. Tur/sana filtrlari ta'sir qilmaydi.
+  const scopeWallets = filters.walletId ? wallets.filter(w => w.id === filters.walletId) : wallets;
+  const dayBalances = new Map<string, Map<string, number>>();
+  if (groups.length > 0 && scopeWallets.length > 0) {
+    const ids = scopeWallets.map(w => w.id);
+    const later = await prisma.transaction.findMany({
+      where: {
+        userId: user.id,
+        date: { gte: dayEnd(groups.at(-1)!.key) },
+        OR: [{ walletId: { in: ids } }, { toWalletId: { in: ids } }],
+      },
+      orderBy: { date: 'desc' },
+      select: { type: true, walletId: true, toWalletId: true, amount: true, toAmount: true, date: true },
+    });
+    const running = new Map(scopeWallets.map(w => [w.id, Number(w.balance)]));
+    let i = 0;
+    for (const { key } of groups) {
+      const end = dayEnd(key);
+      for (; i < later.length && later[i].date >= end; i++) {
+        for (const e of balanceEffects(later[i])) {
+          if (running.has(e.walletId)) running.set(e.walletId, running.get(e.walletId)! - e.delta);
+        }
+      }
+      const byCurrency = new Map<string, number>();
+      for (const w of scopeWallets) {
+        byCurrency.set(w.currency, (byCurrency.get(w.currency) ?? 0) + running.get(w.id)!);
+      }
+      dayBalances.set(key, byCurrency);
+    }
+  }
+
   function renderRow(tx: (typeof transactions)[number]) {
     const isIncome = tx.type === 'INCOME' || tx.type === 'DEBT_IN';
     const isTransfer = tx.type === 'TRANSFER';
+    // Tanlangan hamyonga kelgan o'tkazma — shu hamyon nuqtai nazaridan kirim sifatida ko'rsatiladi
+    const isIncomingTransfer = isTransfer && filters.walletId != null && tx.toWalletId === filters.walletId;
 
     return (
       <div key={tx.id} className="flex items-center justify-between px-4 py-3">
@@ -159,8 +198,12 @@ export default async function TransactionsPage({
           <div className={`text-right text-sm font-semibold ${
             isIncome ? 'text-green-600' : isTransfer ? 'text-blue-600' : 'text-red-600'
           }`}>
-            <p>{isIncome ? '+' : '-'}{formatAmount(Number(tx.amount), tx.currency)}</p>
-            {isTransfer && tx.toAmount && tx.toCurrency && (
+            {isIncomingTransfer ? (
+              <p>+{formatAmount(Number(tx.toAmount ?? tx.amount), tx.toCurrency ?? tx.currency)}</p>
+            ) : (
+              <p>{isIncome ? '+' : '-'}{formatAmount(Number(tx.amount), tx.currency)}</p>
+            )}
+            {isTransfer && !isIncomingTransfer && tx.toAmount && tx.toCurrency && (
               <p className="text-xs font-medium">+{formatAmount(Number(tx.toAmount), tx.toCurrency)}</p>
             )}
           </div>
@@ -175,6 +218,7 @@ export default async function TransactionsPage({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('title')}</h1>
         <div className="flex items-center gap-2">
+          <ImportDialog locale={locale} />
           <ExportButton locale={locale} filters={filters} />
           <TransactionDialog wallets={walletList} savedCategories={categoryList} />
         </div>
@@ -257,11 +301,22 @@ export default async function TransactionsPage({
           <CardContent className="p-0">
             {groups.map(({ key, items }) => {
               const totals = dayTotals.get(key);
+              const balances = dayBalances.get(key);
               return (
                 <section key={key} className="border-b last:border-b-0">
-                  {/* Kun sarlavhasi: chapda sana, o'ngda kunlik jami */}
+                  {/* Kun sarlavhasi: chapda sana va kun oxiridagi qoldiq, o'ngda kunlik jami */}
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 border-b bg-muted/50 px-4 py-1.5 text-xs">
-                    <span className="font-semibold text-muted-foreground">{dayLabel(key, tDays, locale)}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-semibold text-muted-foreground">{dayLabel(key, tDays, locale)}</span>
+                      {balances && (
+                        <span className="tabular-nums text-muted-foreground">
+                          {t('dayBalance')}:{' '}
+                          <span className="font-semibold text-foreground">
+                            {Array.from(balances, ([cur, amount]) => formatMoneySigned(amount, cur, locale)).join(' · ')}
+                          </span>
+                        </span>
+                      )}
+                    </div>
                     {totals && (
                       <div className="flex flex-col items-end gap-0.5 font-semibold tabular-nums">
                         {Array.from(new Set(Array.from(totals.income.keys()).concat(Array.from(totals.expense.keys())))).map((cur) => {

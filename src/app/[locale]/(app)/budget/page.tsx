@@ -7,7 +7,7 @@ import { categoryName } from '@/lib/category-icons';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { BudgetMonthNav } from '@/components/budget/budget-month-nav';
+import { MonthNav } from '@/components/month-nav';
 import { BudgetDialog } from '@/components/budget/budget-dialog';
 import { deleteBudgetAction } from '@/lib/actions/budget';
 import { Button } from '@/components/ui/button';
@@ -79,7 +79,7 @@ export default async function BudgetPage({
       </div>
 
       <Suspense>
-        <BudgetMonthNav month={month} year={year} />
+        <MonthNav month={month} year={year} />
       </Suspense>
 
       {budgets.length === 0 ? (

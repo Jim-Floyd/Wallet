@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
-import { TransactionDialog, type EditableTransaction } from '@/components/transactions/transaction-dialog';
+import { TransactionDialog, type EditableTransaction, type TxWallet } from '@/components/transactions/transaction-dialog';
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button';
 import { deleteTransaction } from '@/lib/actions/transaction';
 import { getTranslations } from 'next-intl/server';
@@ -28,7 +28,7 @@ export async function TransactionActions({
 }: {
   tx: Tx;
   locale: string;
-  wallets: { id: string; name: string; currency: string }[];
+  wallets: TxWallet[];
   categories: { id: string; name: string; icon: string | null }[];
 }) {
   const t = await getTranslations('transactions');

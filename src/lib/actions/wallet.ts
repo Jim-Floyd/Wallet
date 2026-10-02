@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { getTranslations } from 'next-intl/server';
 import { WALLET_ICON_KEYS } from '@/lib/wallet-icons';
+import { parseWalletKind, type WalletKindValue } from '@/lib/credit';
 
 export type WalletState = { error?: string; success?: boolean } | null;
 
@@ -12,6 +13,14 @@ export type WalletState = { error?: string; success?: boolean } | null;
 function parseIcon(formData: FormData): string | null {
   const icon = formData.get('icon') as string | null;
   return icon && WALLET_ICON_KEYS.includes(icon) ? icon : null;
+}
+
+// Kredit hamyonda limit majburiy va musbat; debetda doim null. Xatoda "errors" tarjima kaliti
+function parseCredit(formData: FormData, kind: WalletKindValue): { creditLimit: number | null } | { error: string } {
+  if (kind !== 'CREDIT') return { creditLimit: null };
+  const creditLimit = parseFloat(formData.get('creditLimit') as string);
+  if (!creditLimit || isNaN(creditLimit) || creditLimit <= 0) return { error: 'creditLimitRequired' };
+  return { creditLimit };
 }
 
 export async function addWallet(_: WalletState, formData: FormData): Promise<WalletState> {
@@ -22,14 +31,22 @@ export async function addWallet(_: WalletState, formData: FormData): Promise<Wal
 
   const name = formData.get('name') as string;
   const currency = (formData.get('currency') as string) || 'UZS';
-  const balance = parseFloat((formData.get('balance') as string) || '0') || 0;
   const color = (formData.get('color') as string) || null;
   const icon = parseIcon(formData);
+  const kind = parseWalletKind(formData.get('kind'));
 
   if (!name) return { error: t('walletNameRequired') };
 
+  const credit = parseCredit(formData, kind);
+  if ('error' in credit) return { error: t(credit.error) };
+
+  // Kredit hamyonda boshlang'ich qoldiq o'rniga hozirgi qarz kiritiladi — manfiy qoldiq bo'lib saqlanadi
+  const balance = kind === 'CREDIT'
+    ? -(parseFloat((formData.get('currentDebt') as string) || '0') || 0)
+    : parseFloat((formData.get('balance') as string) || '0') || 0;
+
   await prisma.wallet.create({
-    data: { userId: user.id, name, currency, balance, color, icon },
+    data: { userId: user.id, name, currency, balance, color, icon, kind, creditLimit: credit.creditLimit },
   });
 
   revalidatePath('/', 'layout');
@@ -83,7 +100,11 @@ export async function updateWallet(_: WalletState, formData: FormData): Promise<
   const color = (formData.get('color') as string) || null;
   const icon = parseIcon(formData);
   const makeDefault = formData.get('makeDefault') === 'on';
+  const kind = parseWalletKind(formData.get('kind'));
   if (!name) return { error: t('walletNameRequired') };
+
+  const credit = parseCredit(formData, kind);
+  if ('error' in credit) return { error: t(credit.error) };
 
   const wallet = await prisma.wallet.findFirst({ where: { id, userId: user.id } });
   if (!wallet) return { error: t('walletNotFound') };
@@ -95,7 +116,7 @@ export async function updateWallet(_: WalletState, formData: FormData): Promise<
       : []),
     prisma.wallet.update({
       where: { id },
-      data: { name, color, icon, ...(makeDefault && { isDefault: true }) },
+      data: { name, color, icon, kind, creditLimit: credit.creditLimit, ...(makeDefault && { isDefault: true }) },
     }),
   ]);
   revalidatePath('/', 'layout');

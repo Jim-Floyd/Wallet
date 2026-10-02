@@ -35,6 +35,8 @@ model Wallet {
   name         String
   balance      Decimal         @default(0) @db.Decimal(15, 2)
   currency     String          @default("UZS")
+  kind         WalletKind      @default(DEBIT)
+  creditLimit  Decimal?        @db.Decimal(15, 2) // faqat CREDIT; qoldiq manfiy — ishlatilgan qarz
   cardNumber   String?
   color        String?
   icon         String?
@@ -46,6 +48,13 @@ model Wallet {
   fromTransactions Transaction[] @relation("fromWallet")
   toTransactions   Transaction[] @relation("toWallet")
   recurringRules   RecurringRule[]
+}
+
+// DEBIT — o'z puli (naqd, plastik). CREDIT — kredit karta/liniya: qoldiq 0 dan pastga tushadi,
+// manfiy qoldiq = bank oldidagi qarz, mavjud mablag' = creditLimit + balance
+enum WalletKind {
+  DEBIT
+  CREDIT
 }
 
 model Transaction {

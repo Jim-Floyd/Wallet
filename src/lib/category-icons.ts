@@ -8,7 +8,7 @@ import type { Translate } from '@/lib/intl';
 
 // Standart kategoriyalar: bazada o'zbekcha nomi saqlanadi (eski yozuvlar bilan mos),
 // ekranda esa `defaultCategories.<id>` tarjimasi ko'rsatiladi
-const DEFAULT_CATEGORIES: { name: string; id: string; icon: string }[] = [
+export const DEFAULT_CATEGORIES: { name: string; id: string; icon: string }[] = [
   { name: 'Maosh', id: 'salary', icon: 'briefcase' },
   { name: 'Bonus', id: 'bonus', icon: 'award' },
   { name: 'Freelance', id: 'freelance', icon: 'laptop' },

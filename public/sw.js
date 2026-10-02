@@ -1,4 +1,7 @@
-const CACHE = 'hamyon-v1';
+// v2: sahifalar — avval tarmoq, kesh faqat oflayn uchun; RSC so'rovlari keshlanmaydi.
+// (v1 sahifa va RSC javoblarini avval keshdan berardi — yangi versiyadan keyin eski RSC yangi JS bilan
+// mos kelmay, "Cannot read properties of undefined (reading 'call')" xatosi chiqardi)
+const CACHE = 'hamyon-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -19,18 +22,20 @@ self.addEventListener('fetch', (e) => {
     request.method !== 'GET' ||
     url.origin !== location.origin ||
     url.pathname.startsWith('/_next/') ||
-    url.pathname.includes('/auth/')
+    url.pathname.includes('/auth/') ||
+    url.searchParams.has('_rsc') ||
+    request.headers.get('RSC') === '1'
   ) return;
 
   e.respondWith(
-    caches.match(request).then((cached) => {
-      const fresh = fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
         if (response.ok) {
-          caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
         }
         return response;
-      });
-      return cached || fresh;
-    })
+      })
+      .catch(() => caches.match(request).then((cached) => cached || Response.error()))
   );
 });

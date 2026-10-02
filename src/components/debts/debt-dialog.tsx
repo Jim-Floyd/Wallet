@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { addDebt, updateDebt, type DebtState } from '@/lib/actions/debt';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/amount-input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -177,7 +178,7 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="debt-amount">{t('amount')}{wallet ? ` (${wallet.currency})` : ''}</Label>
-                  <Input id="debt-amount" name="amount" type="number" min="0.01" step="0.01" placeholder="0" required />
+                  <AmountInput id="debt-amount" name="amount" placeholder="0" required />
                 </div>
                 {walletId ? (
                   <div className="space-y-2">

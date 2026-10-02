@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { addWallet, type WalletState } from '@/lib/actions/wallet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/amount-input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -12,6 +13,8 @@ import { Plus, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { WalletStyleFields } from '@/components/wallets/wallet-style-fields';
 import { WALLET_COLORS } from '@/lib/wallet-icons';
+import { WalletKindFields } from '@/components/wallets/wallet-kind-fields';
+import type { WalletKindValue } from '@/lib/credit';
 
 // Nomlari tarjimada: currencies.<value>
 const CURRENCIES = [
@@ -40,6 +43,7 @@ export function AddWalletDialog() {
   const [currency, setCurrency] = useState('UZS');
   const [color, setColor] = useState(WALLET_COLORS[0]);
   const [icon, setIcon] = useState<string | null>(null);
+  const [kind, setKind] = useState<WalletKindValue>('DEBIT');
   const [state, action] = useFormState<WalletState, FormData>(addWallet, null);
 
   useEffect(() => {
@@ -48,6 +52,7 @@ export function AddWalletDialog() {
       setCurrency('UZS');
       setColor(WALLET_COLORS[0]);
       setIcon(null);
+      setKind('DEBIT');
     }
   }, [state]);
 
@@ -94,18 +99,25 @@ export function AddWalletDialog() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="wallet-balance">{t('initialBalance', { currency })}</Label>
-            <Input
-              id="wallet-balance"
-              name="balance"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0"
-              defaultValue="0"
-            />
-          </div>
+          <WalletKindFields kind={kind} currency={currency} onKindChange={setKind} />
+
+          {kind === 'CREDIT' ? (
+            <div className="space-y-2">
+              <Label htmlFor="wallet-current-debt">{t('currentDebt', { currency })}</Label>
+              <AmountInput id="wallet-current-debt" name="currentDebt" placeholder="0" defaultValue={0} />
+              <p className="text-xs text-muted-foreground">{t('currentDebtHint')}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="wallet-balance">{t('initialBalance', { currency })}</Label>
+              <AmountInput
+                id="wallet-balance"
+                name="balance"
+                placeholder="0"
+                defaultValue={0}
+              />
+            </div>
+          )}
 
           <WalletStyleFields
             color={color}

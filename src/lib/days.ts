@@ -18,6 +18,20 @@ export function dayEnd(key: string) {
   return new Date(dayStart(key).getTime() + DAY_MS);
 }
 
+// Oy boshi ilova vaqt zonasida; month 1..12, chegaradan chiqsa yil siljiydi (0 → o'tgan yil dekabri, 13 → keyingi yil yanvari)
+export function monthStart(year: number, month: number) {
+  const d = new Date(Date.UTC(year, month - 1, 1));
+  return dayStart(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`);
+}
+
+// URL dagi ?month=&year= ni o'qiydi; yo'q yoki noto'g'ri bo'lsa — joriy oy (ilova vaqt zonasida)
+export function parseMonthParams(sp: { month?: string; year?: string }) {
+  const [curYear, curMonth] = dayKey(new Date()).split('-').map(Number);
+  const month = Math.min(Math.max(parseInt(sp.month ?? '') || curMonth, 1), 12);
+  const year = parseInt(sp.year ?? '') || curYear;
+  return { month, year };
+}
+
 // Sana ilova vaqt zonasida, tanlangan til formatida
 export function formatDay(date: Date, locale: string, opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }) {
   return new Intl.DateTimeFormat(intlLocale(locale), { timeZone: APP_TZ, ...opts }).format(date);

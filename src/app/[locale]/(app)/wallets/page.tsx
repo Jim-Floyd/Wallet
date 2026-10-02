@@ -8,7 +8,9 @@ import { AddWalletDialog } from '@/components/dashboard/add-wallet-dialog';
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button';
 import { EditWalletDialog } from '@/components/wallets/edit-wallet-dialog';
 import { WalletAvatar } from '@/components/wallets/wallet-avatar';
+import { CreditUsage } from '@/components/wallets/credit-usage';
 import { deleteWallet } from '@/lib/actions/wallet';
+import { creditInfo } from '@/lib/credit';
 import { getTranslations } from 'next-intl/server';
 import { intlLocale } from '@/lib/intl';
 
@@ -78,9 +80,13 @@ export default async function WalletsPage({ params }: { params: Promise<{ locale
                           <Badge variant="secondary" className="text-xs shrink-0">{t('default')}</Badge>
                         )}
                       </div>
-                      <p className="text-2xl font-bold mt-1 tabular-nums">
+                      <p className={`text-2xl font-bold mt-1 tabular-nums ${Number(wallet.balance) < 0 ? 'text-red-600' : ''}`}>
                         {formatBalance(wallet.balance, wallet.currency, locale, t('uzsSymbol'))}
                       </p>
+                      {wallet.kind === 'CREDIT' && (
+                        <p className="text-xs text-muted-foreground">{t('kinds.CREDIT')}</p>
+                      )}
+                      {creditInfo(wallet) && <CreditUsage info={creditInfo(wallet)!} currency={wallet.currency} />}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center">
@@ -92,6 +98,8 @@ export default async function WalletsPage({ params }: { params: Promise<{ locale
                         color: wallet.color,
                         icon: wallet.icon,
                         isDefault: wallet.isDefault,
+                        kind: wallet.kind,
+                        creditLimit: wallet.creditLimit == null ? null : Number(wallet.creditLimit),
                       }}
                     />
                     {!wallet.isDefault && (

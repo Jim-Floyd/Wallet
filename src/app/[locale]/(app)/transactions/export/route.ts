@@ -5,7 +5,7 @@ import { processRecurring } from '@/lib/recurring-server';
 import * as XLSX from 'xlsx';
 import { debtTxLabel, txTypeWhere } from '@/lib/debt';
 import { getTranslations } from 'next-intl/server';
-import { formatDay } from '@/lib/days';
+import { dayEnd, dayStart, formatDay } from '@/lib/days';
 import { categoryName } from '@/lib/category-icons';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ locale: string }> }) {
@@ -27,11 +27,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const where = {
     userId: user.id,
     ...txTypeWhere(type),
-    ...(walletId && { walletId }),
+    ...(walletId && { OR: [{ walletId }, { toWalletId: walletId }] }),
+    // Kunlar Toshkent vaqti bo'yicha (sahifadagi filtr bilan bir xil)
     ...((from || to) && {
       date: {
-        ...(from && { gte: new Date(from) }),
-        ...(to && { lte: new Date(to + 'T23:59:59') }),
+        ...(from && { gte: dayStart(from) }),
+        ...(to && { lt: dayEnd(to) }),
       },
     }),
   };

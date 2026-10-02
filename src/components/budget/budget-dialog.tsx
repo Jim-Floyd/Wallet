@@ -4,7 +4,7 @@ import { useFormState, useFormStatus } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { upsertBudget, type BudgetState } from '@/lib/actions/budget';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/amount-input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -91,13 +91,10 @@ export function BudgetDialog({ month, year, categories, budget }: Props) {
 
           <div className="space-y-2">
             <Label htmlFor="amount">{t('limitAmount')}</Label>
-            <Input
+            <AmountInput
               id="amount"
               name="amount"
-              type="number"
-              min="0"
-              step="0.01"
-              defaultValue={budget?.amount ?? ''}
+              defaultValue={budget?.amount}
               required
             />
           </div>

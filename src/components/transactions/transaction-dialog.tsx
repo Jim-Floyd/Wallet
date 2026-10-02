@@ -3,8 +3,10 @@
 import { useFormState, useFormStatus } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { addTransaction, updateTransaction, type TransactionState } from '@/lib/actions/transaction';
+import { addDebt, type DebtState } from '@/lib/actions/debt';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/amount-input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -12,15 +14,19 @@ import { AddCategoryDialog } from '@/components/categories/add-category-dialog';
 import { Plus, Pencil, Loader2 } from 'lucide-react';
 import { toDateInput } from '@/lib/form-date';
 import { useLocale, useTranslations } from 'next-intl';
-import { intlLocale } from '@/lib/intl';
-import { APP_TZ, dayStart } from '@/lib/days';
+import { formatMoneySigned } from '@/lib/intl';
+import { dayKey, dayStart } from '@/lib/days';
 import { FREQUENCIES, occurrenceDate, type Frequency } from '@/lib/recurring';
+import { CURRENCY_RANK } from '@/lib/currency';
 import { EXPENSE_DEFAULTS, INCOME_DEFAULTS, categoryIconKey, categoryName, getCategoryIcon, iconBg } from '@/lib/category-icons';
 
-const CURRENCY_RANK: Record<string, number> = { UZS: 1, RUB: 2, USD: 3, EUR: 4 };
-
 type TxType = 'INCOME' | 'EXPENSE' | 'TRANSFER';
-type Wallet = { id: string; name: string; currency: string };
+// DEBT — faqat yangi yozuvda: forma Qarzlar bo'limidagi addDebt ga yuboriladi
+type FormType = TxType | 'DEBT';
+type DebtType = 'LENT' | 'BORROWED';
+// available — kredit hamyonda hozirgi mavjud mablag' (limit + qoldiq), debetda null
+export type TxWallet = { id: string; name: string; currency: string; available?: number | null };
+type Wallet = TxWallet;
 type Category = { id: string; name: string; icon: string | null };
 
 export type EditableTransaction = {
@@ -60,6 +66,7 @@ export function TransactionDialog({
   const t = useTranslations('transactions');
   const tc = useTranslations('common');
   const tCat = useTranslations('defaultCategories');
+  const td = useTranslations('debts');
   const locale = useLocale();
   const isEdit = !!transaction;
   const initialWalletId = transaction?.walletId ?? wallets[0]?.id ?? '';
@@ -67,7 +74,8 @@ export function TransactionDialog({
     transaction?.toWalletId ?? wallets.find(w => w.id !== initialWalletId)?.id ?? initialWalletId;
 
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<TxType>(transaction?.type ?? 'EXPENSE');
+  const [type, setType] = useState<FormType>(transaction?.type ?? 'EXPENSE');
+  const [debtType, setDebtType] = useState<DebtType>('LENT');
   const [walletId, setWalletId] = useState(initialWalletId);
   const [toWalletId, setToWalletId] = useState(initialToWalletId);
   const [selectedCategory, setSelectedCategory] = useState(transaction?.category ?? '');
@@ -76,6 +84,9 @@ export function TransactionDialog({
     isEdit ? updateTransaction : addTransaction,
     null,
   );
+  const [debtState, debtAction] = useFormState<DebtState, FormData>(addDebt, null);
+  const isDebt = type === 'DEBT';
+  const error = isDebt ? debtState?.error : state?.error;
 
   const fromWallet = wallets.find(w => w.id === walletId);
   const toWallet = wallets.find(w => w.id === toWalletId);
@@ -102,32 +113,43 @@ export function TransactionDialog({
   const originalDate = transaction ? toDateInput(new Date(transaction.date)) : '';
   const [date, setDate] = useState(originalDate || today);
   const [repeat, setRepeat] = useState<Frequency | ''>('');
+  const [amount, setAmount] = useState(transaction?.amount ?? 0);
 
-  // Takrorlash faqat yangi kirim/chiqimda; keyingi sana formada izoh sifatida ko'rsatiladi
-  const canRepeat = !isEdit && type !== 'TRANSFER';
+  // Kredit hamyondan chiqim/o'tkazma limitdan oshsa — ogohlantirish (saqlashga to'sqinlik qilmaydi).
+  // Tahrirlashda eski summa allaqachon ayirilgan — mavjudga qaytarib qo'shiladi
+  const outflow = type === 'EXPENSE' || type === 'TRANSFER' || (isDebt && debtType === 'LENT');
+  const creditAvailable = outflow && fromWallet?.available != null
+    ? fromWallet.available + (isEdit && transaction.walletId === walletId ? transaction.amount : 0)
+    : null;
+  const overCredit = creditAvailable != null && amount > creditAvailable;
+
+  // Takrorlash faqat yangi kirim/chiqimda; keyingi sana formada izoh sifatida ko'rsatiladi.
+  // Raqamli "kun.oy.yil": brauzerlarda o'zbekcha oy nomlari yo'q (Intl "M10" qaytaradi)
+  const canRepeat = !isEdit && (type === 'INCOME' || type === 'EXPENSE');
   const nextRepeat = canRepeat && repeat && date
-    ? new Intl.DateTimeFormat(intlLocale(locale), { timeZone: APP_TZ, day: 'numeric', month: 'long', year: 'numeric' })
-        .format(occurrenceDate(dayStart(date), repeat, 1))
+    ? dayKey(occurrenceDate(dayStart(date), repeat, 1)).split('-').reverse().join('.')
     : null;
 
   useEffect(() => {
-    if (state?.success) setOpen(false);
-  }, [state]);
+    if (state?.success || debtState?.success) setOpen(false);
+  }, [state, debtState]);
 
   function handleOpenChange(next: boolean) {
     if (next) {
       // Har ochilganda boshlang'ich qiymatlarga qaytarish
       setType(transaction?.type ?? 'EXPENSE');
+      setDebtType('LENT');
       setWalletId(initialWalletId);
       setToWalletId(initialToWalletId);
       setSelectedCategory(transaction?.category ?? '');
       setDate(originalDate || toDateInput(new Date()));
       setRepeat('');
+      setAmount(transaction?.amount ?? 0);
     }
     setOpen(next);
   }
 
-  function changeType(next: TxType) {
+  function changeType(next: FormType) {
     setType(next);
     setSelectedCategory('');
   }
@@ -150,19 +172,19 @@ export function TransactionDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? t('editTitle') : t('newTitle')}</DialogTitle>
         </DialogHeader>
-        <form action={action} className="space-y-4">
-          <input type="hidden" name="type" value={type} />
+        <form action={isDebt ? debtAction : action} className="space-y-4">
+          <input type="hidden" name="type" value={isDebt ? debtType : type} />
           <input type="hidden" name="today" value={today} />
           {isEdit && <input type="hidden" name="id" value={transaction.id} />}
           {isEdit && <input type="hidden" name="originalDate" value={originalDate} />}
 
-          {state?.error && (
-            <Alert variant="destructive" className="text-sm py-2">{state.error}</Alert>
+          {error && (
+            <Alert variant="destructive" className="text-sm py-2">{error}</Alert>
           )}
 
-          {/* Tur (tahrirlashda o'zgarmaydi) */}
-          <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
-            {(['EXPENSE', 'INCOME', 'TRANSFER'] as const).map((value) => (
+          {/* Tur (tahrirlashda o'zgarmaydi; qarz — faqat yangi yozuvda) */}
+          <div className={`grid gap-1 rounded-lg bg-muted p-1 ${isEdit ? 'grid-cols-3' : 'grid-cols-4'}`}>
+            {(isEdit ? (['EXPENSE', 'INCOME', 'TRANSFER'] as const) : (['EXPENSE', 'INCOME', 'TRANSFER', 'DEBT'] as const)).map((value) => (
               <button
                 key={value}
                 type="button"
@@ -172,10 +194,41 @@ export function TransactionDialog({
                   type === value ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {t(value.toLowerCase())}
+                {value === 'DEBT' ? t('filter.DEBT') : t(value.toLowerCase())}
               </button>
             ))}
           </div>
+
+          {/* Qarz: berdim/oldim + kim bilan */}
+          {isDebt && (
+            <>
+              <div className="grid grid-cols-2 gap-1 rounded-lg border p-1">
+                {(['LENT', 'BORROWED'] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setDebtType(value)}
+                    className={`rounded-md py-1.5 text-xs font-medium transition-colors ${
+                      debtType === value ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {value === 'LENT' ? td('iLent') : td('iBorrowed')}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="tx-person">{debtType === 'LENT' ? td('personTo') : td('personFrom')}</Label>
+                  <Input id="tx-person" name="person" placeholder={td('personPlaceholder')} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tx-phone">{td('phone')}</Label>
+                  <Input id="tx-phone" name="phone" type="tel" placeholder="+998..." />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Hamyon(lar) */}
           <input type="hidden" name="walletId" value={walletId} />
@@ -214,14 +267,12 @@ export function TransactionDialog({
                   <Label htmlFor="tx-rate">{t('rate')}</Label>
                   <div className="flex items-center gap-2">
                     <span className="shrink-0 text-sm font-medium">1 {higherCurrency} =</span>
-                    <Input
+                    <AmountInput
                       id="tx-rate"
                       name="rate"
-                      type="number"
-                      min="0.000001"
-                      step="any"
+                      decimals={6}
                       placeholder="0"
-                      defaultValue={transaction?.rate ?? undefined}
+                      defaultValue={transaction?.rate}
                       required
                       className="flex-1"
                     />
@@ -232,7 +283,9 @@ export function TransactionDialog({
             </>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor="tx-wallet">{t('wallet')}</Label>
+              <Label htmlFor="tx-wallet">
+                {isDebt ? td(debtType === 'LENT' ? 'walletLent' : 'walletBorrowed') : t('wallet')}
+              </Label>
               <select
                 id="tx-wallet"
                 value={walletId}
@@ -252,14 +305,12 @@ export function TransactionDialog({
               <Label htmlFor="tx-amount">
                 {t('amount')}{fromWallet ? ` (${fromWallet.currency})` : ''}
               </Label>
-              <Input
+              <AmountInput
                 id="tx-amount"
                 name="amount"
-                type="number"
-                min="0.01"
-                step="0.01"
                 placeholder="0"
                 defaultValue={transaction?.amount}
+                onValueChange={setAmount}
                 required
               />
             </div>
@@ -276,6 +327,12 @@ export function TransactionDialog({
               />
             </div>
           </div>
+
+          {overCredit && fromWallet && (
+            <p className="-mt-2 text-xs font-medium text-amber-600">
+              {t('overCreditLimit', { available: formatMoneySigned(creditAvailable!, fromWallet.currency, locale) })}
+            </p>
+          )}
 
           {/* Takrorlash */}
           {canRepeat && (
@@ -301,8 +358,16 @@ export function TransactionDialog({
             </div>
           )}
 
+          {/* Qarz qaytarish muddati */}
+          {isDebt && (
+            <div className="space-y-2">
+              <Label htmlFor="tx-due">{td('dueDate')}</Label>
+              <Input id="tx-due" name="dueDate" type="date" />
+            </div>
+          )}
+
           {/* Kategoriya */}
-          {type !== 'TRANSFER' && (
+          {(type === 'INCOME' || type === 'EXPENSE') && (
             <div className="space-y-2">
               <Label htmlFor="tx-category">{t('category')}</Label>
               <div className="flex gap-2">
