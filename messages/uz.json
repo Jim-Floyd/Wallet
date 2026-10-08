@@ -144,6 +144,12 @@
     "rateValue": "Kurs: {rate}",
     "overCreditLimit": "Kredit limitidan oshadi — kartada mavjud: {available}",
     "dayBalance": "Qoldiq",
+    "debtRepay": "Qaytarish",
+    "selectDebt": "Qaysi qarz",
+    "allCategories": "Barcha kategoriyalar",
+    "uncategorized": "Kategoriyasiz",
+    "filteredCount": "{count} ta yozuv",
+    "filterByCategory": "Shu kategoriya bo'yicha ko'rsatish",
     "recurringList": "Takrorlanuvchi to'lovlar ({count})",
     "nextOn": "Keyingisi: {date}",
     "stopRecurringTitle": "Takrorni to'xtatish",
@@ -203,7 +209,8 @@
     "limitAmount": "Limit miqdori",
     "currency": "Valyuta",
     "empty": "Bu oy uchun byudjet belgilanmagan",
-    "overLimit": "limit oshib ketdi!"
+    "overLimit": "limit oshib ketdi!",
+    "showExpenses": "Shu kategoriya xarajatlarini ko'rish"
   },
   "goals": {
     "title": "Maqsadlar",

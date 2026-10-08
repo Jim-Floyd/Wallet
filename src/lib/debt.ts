@@ -35,6 +35,17 @@ type DebtLike = {
   transactions: { type: TransactionType; amount: number | { toString(): string } }[];
 };
 
+// Tranzaksiya oynasidagi "Qaytarish" uchun ochiq qarzlar ro'yxati
+export type OpenDebtOption = { id: string; type: DebtType; person: string; currency: string; remaining: number };
+
+export function openDebtOptions(debts: (DebtLike & { id: string; person: string; currency: string })[]): OpenDebtOption[] {
+  return debts
+    .map(d => ({ d, progress: debtProgress(d) }))
+    .filter(({ progress }) => !progress.closed)
+    .map(({ d, progress }) => ({ id: d.id, type: d.type, person: d.person, currency: d.currency, remaining: progress.remaining }))
+    .sort((a, b) => a.person.localeCompare(b.person));
+}
+
 export function debtProgress(debt: DebtLike) {
   const amount = Number(debt.amount);
   const repay = repayTxType(debt.type);

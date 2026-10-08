@@ -3,7 +3,8 @@
 import { useFormState, useFormStatus } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { addTransaction, updateTransaction, type TransactionState } from '@/lib/actions/transaction';
-import { addDebt, type DebtState } from '@/lib/actions/debt';
+import { addDebt, addDebtPayment, type DebtState } from '@/lib/actions/debt';
+import type { OpenDebtOption } from '@/lib/debt';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AmountInput } from '@/components/amount-input';
@@ -14,16 +15,16 @@ import { AddCategoryDialog } from '@/components/categories/add-category-dialog';
 import { Plus, Pencil, Loader2 } from 'lucide-react';
 import { toDateInput } from '@/lib/form-date';
 import { useLocale, useTranslations } from 'next-intl';
-import { formatMoneySigned } from '@/lib/intl';
+import { formatMoney, formatMoneySigned } from '@/lib/intl';
 import { dayKey, dayStart } from '@/lib/days';
 import { FREQUENCIES, occurrenceDate, type Frequency } from '@/lib/recurring';
 import { CURRENCY_RANK } from '@/lib/currency';
 import { EXPENSE_DEFAULTS, INCOME_DEFAULTS, categoryIconKey, categoryName, getCategoryIcon, iconBg } from '@/lib/category-icons';
 
 type TxType = 'INCOME' | 'EXPENSE' | 'TRANSFER';
-// DEBT — faqat yangi yozuvda: forma Qarzlar bo'limidagi addDebt ga yuboriladi
+// DEBT — faqat yangi yozuvda: yangi qarz → addDebt, ochiq qarzni qaytarish → addDebtPayment
 type FormType = TxType | 'DEBT';
-type DebtType = 'LENT' | 'BORROWED';
+type DebtMode = 'LENT' | 'BORROWED' | 'REPAY';
 // available — kredit hamyonda hozirgi mavjud mablag' (limit + qoldiq), debetda null
 export type TxWallet = { id: string; name: string; currency: string; available?: number | null };
 type Wallet = TxWallet;
@@ -43,11 +44,11 @@ export type EditableTransaction = {
 
 export const SELECT_CLS = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring';
 
-function SubmitButton() {
+function SubmitButton({ disabled = false }: { disabled?: boolean }) {
   const t = useTranslations('common');
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" className="w-full" disabled={pending}>
+    <Button type="submit" className="w-full" disabled={pending || disabled}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
       {t('save')}
     </Button>
@@ -58,10 +59,12 @@ export function TransactionDialog({
   wallets,
   savedCategories,
   transaction,
+  openDebts = [],
 }: {
   wallets: Wallet[];
   savedCategories: Category[];
   transaction?: EditableTransaction;
+  openDebts?: OpenDebtOption[];
 }) {
   const t = useTranslations('transactions');
   const tc = useTranslations('common');
@@ -75,7 +78,8 @@ export function TransactionDialog({
 
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FormType>(transaction?.type ?? 'EXPENSE');
-  const [debtType, setDebtType] = useState<DebtType>('LENT');
+  const [debtMode, setDebtMode] = useState<DebtMode>('LENT');
+  const [debtId, setDebtId] = useState(openDebts[0]?.id ?? '');
   const [walletId, setWalletId] = useState(initialWalletId);
   const [toWalletId, setToWalletId] = useState(initialToWalletId);
   const [selectedCategory, setSelectedCategory] = useState(transaction?.category ?? '');
@@ -85,8 +89,15 @@ export function TransactionDialog({
     null,
   );
   const [debtState, debtAction] = useFormState<DebtState, FormData>(addDebt, null);
+  const [payState, payAction] = useFormState<DebtState, FormData>(addDebtPayment, null);
   const isDebt = type === 'DEBT';
-  const error = isDebt ? debtState?.error : state?.error;
+  const isRepay = isDebt && debtMode === 'REPAY';
+  const error = isRepay ? payState?.error : isDebt ? debtState?.error : state?.error;
+
+  // Qaytarish faqat qarz valyutasidagi hamyon orqali
+  const selectedDebt = openDebts.find(d => d.id === debtId);
+  const walletChoices = isRepay && selectedDebt ? wallets.filter(w => w.currency === selectedDebt.currency) : wallets;
+  const repayBlocked = isRepay && (!selectedDebt || walletChoices.length === 0);
 
   const fromWallet = wallets.find(w => w.id === walletId);
   const toWallet = wallets.find(w => w.id === toWalletId);
@@ -117,7 +128,8 @@ export function TransactionDialog({
 
   // Kredit hamyondan chiqim/o'tkazma limitdan oshsa — ogohlantirish (saqlashga to'sqinlik qilmaydi).
   // Tahrirlashda eski summa allaqachon ayirilgan — mavjudga qaytarib qo'shiladi
-  const outflow = type === 'EXPENSE' || type === 'TRANSFER' || (isDebt && debtType === 'LENT');
+  const outflow = type === 'EXPENSE' || type === 'TRANSFER' || (isDebt && debtMode === 'LENT')
+    || (isRepay && selectedDebt?.type === 'BORROWED');
   const creditAvailable = outflow && fromWallet?.available != null
     ? fromWallet.available + (isEdit && transaction.walletId === walletId ? transaction.amount : 0)
     : null;
@@ -131,14 +143,32 @@ export function TransactionDialog({
     : null;
 
   useEffect(() => {
-    if (state?.success || debtState?.success) setOpen(false);
-  }, [state, debtState]);
+    if (state?.success || debtState?.success || payState?.success) setOpen(false);
+  }, [state, debtState, payState]);
+
+  // Qarz tanlanganda: hamyon shu valyutadagisiga almashadi, summa — qolgan qarz
+  function pickDebt(id: string) {
+    const debt = openDebts.find(d => d.id === id);
+    setDebtId(id);
+    if (!debt) return;
+    if (fromWallet?.currency !== debt.currency) {
+      setWalletId(wallets.find(w => w.currency === debt.currency)?.id ?? walletId);
+    }
+    setAmount(debt.remaining);
+  }
+
+  function changeDebtMode(next: DebtMode) {
+    setDebtMode(next);
+    if (next === 'REPAY') pickDebt(debtId || openDebts[0]?.id || '');
+    else if (debtMode === 'REPAY') setAmount(0); // summa maydoni qayta yaratiladi va bo'sh bo'ladi
+  }
 
   function handleOpenChange(next: boolean) {
     if (next) {
       // Har ochilganda boshlang'ich qiymatlarga qaytarish
       setType(transaction?.type ?? 'EXPENSE');
-      setDebtType('LENT');
+      setDebtMode('LENT');
+      setDebtId(openDebts[0]?.id ?? '');
       setWalletId(initialWalletId);
       setToWalletId(initialToWalletId);
       setSelectedCategory(transaction?.category ?? '');
@@ -152,6 +182,7 @@ export function TransactionDialog({
   function changeType(next: FormType) {
     setType(next);
     setSelectedCategory('');
+    if (isRepay) changeDebtMode('LENT');
   }
 
   function changeFromWallet(id: string) {
@@ -172,8 +203,9 @@ export function TransactionDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? t('editTitle') : t('newTitle')}</DialogTitle>
         </DialogHeader>
-        <form action={isDebt ? debtAction : action} className="space-y-4">
-          <input type="hidden" name="type" value={isDebt ? debtType : type} />
+        <form action={isRepay ? payAction : isDebt ? debtAction : action} className="space-y-4">
+          <input type="hidden" name="type" value={isDebt ? debtMode : type} />
+          {isRepay && <input type="hidden" name="debtId" value={debtId} />}
           <input type="hidden" name="today" value={today} />
           {isEdit && <input type="hidden" name="id" value={transaction.id} />}
           {isEdit && <input type="hidden" name="originalDate" value={originalDate} />}
@@ -199,35 +231,55 @@ export function TransactionDialog({
             ))}
           </div>
 
-          {/* Qarz: berdim/oldim + kim bilan */}
+          {/* Qarz: berdim / oldim / ochiq qarzni qaytarish */}
           {isDebt && (
-            <>
-              <div className="grid grid-cols-2 gap-1 rounded-lg border p-1">
-                {(['LENT', 'BORROWED'] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setDebtType(value)}
-                    className={`rounded-md py-1.5 text-xs font-medium transition-colors ${
-                      debtType === value ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {value === 'LENT' ? td('iLent') : td('iBorrowed')}
-                  </button>
-                ))}
-              </div>
+            <div className="grid grid-cols-3 gap-1 rounded-lg border p-1">
+              {(['LENT', 'BORROWED', 'REPAY'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => changeDebtMode(value)}
+                  className={`rounded-md py-1.5 text-xs font-medium transition-colors ${
+                    debtMode === value ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {value === 'LENT' ? td('iLent') : value === 'BORROWED' ? td('iBorrowed') : t('debtRepay')}
+                </button>
+              ))}
+            </div>
+          )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="tx-person">{debtType === 'LENT' ? td('personTo') : td('personFrom')}</Label>
-                  <Input id="tx-person" name="person" placeholder={td('personPlaceholder')} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tx-phone">{td('phone')}</Label>
-                  <Input id="tx-phone" name="phone" type="tel" placeholder="+998..." />
-                </div>
+          {isDebt && !isRepay && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="tx-person">{debtMode === 'LENT' ? td('personTo') : td('personFrom')}</Label>
+                <Input id="tx-person" name="person" placeholder={td('personPlaceholder')} required />
               </div>
-            </>
+              <div className="space-y-2">
+                <Label htmlFor="tx-phone">{td('phone')}</Label>
+                <Input id="tx-phone" name="phone" type="tel" placeholder="+998..." />
+              </div>
+            </div>
+          )}
+
+          {isRepay && (
+            openDebts.length === 0 ? (
+              <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">{td('noOpen')}</p>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="tx-debt">{t('selectDebt')}</Label>
+                <select id="tx-debt" value={debtId} onChange={(e) => pickDebt(e.target.value)} className={SELECT_CLS}>
+                  {openDebts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.person} — {d.type === 'LENT' ? td('owedToMe') : td('iOwe')} · {td('left', { amount: formatMoney(d.remaining, d.currency, locale) })}
+                    </option>
+                  ))}
+                </select>
+                {selectedDebt && walletChoices.length === 0 && (
+                  <p className="text-xs text-amber-600">{td('noMatchingWallet', { currency: selectedDebt.currency })}</p>
+                )}
+              </div>
+            )
           )}
 
           {/* Hamyon(lar) */}
@@ -281,10 +333,12 @@ export function TransactionDialog({
                 </div>
               )}
             </>
-          ) : (
+          ) : !repayBlocked && (
             <div className="space-y-2">
               <Label htmlFor="tx-wallet">
-                {isDebt ? td(debtType === 'LENT' ? 'walletLent' : 'walletBorrowed') : t('wallet')}
+                {isRepay
+                  ? td(selectedDebt?.type === 'LENT' ? 'walletRepaid' : 'walletPaid')
+                  : isDebt ? td(debtMode === 'LENT' ? 'walletLent' : 'walletBorrowed') : t('wallet')}
               </Label>
               <select
                 id="tx-wallet"
@@ -292,7 +346,7 @@ export function TransactionDialog({
                 onChange={(e) => setWalletId(e.target.value)}
                 className={SELECT_CLS}
               >
-                {wallets.map((w) => (
+                {walletChoices.map((w) => (
                   <option key={w.id} value={w.id}>{w.name} ({w.currency})</option>
                 ))}
               </select>
@@ -300,16 +354,19 @@ export function TransactionDialog({
           )}
 
           {/* Miqdor + Sana */}
+          {!repayBlocked && (
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="tx-amount">
                 {t('amount')}{fromWallet ? ` (${fromWallet.currency})` : ''}
               </Label>
+              {/* Qaytarishda qarz almashganda maydon qayta yaratiladi — standart qiymat qolgan qarz */}
               <AmountInput
+                key={isRepay ? `repay-${debtId}` : 'amount'}
                 id="tx-amount"
                 name="amount"
                 placeholder="0"
-                defaultValue={transaction?.amount}
+                defaultValue={isRepay ? selectedDebt?.remaining : transaction?.amount}
                 onValueChange={setAmount}
                 required
               />
@@ -327,6 +384,13 @@ export function TransactionDialog({
               />
             </div>
           </div>
+          )}
+
+          {isRepay && selectedDebt && !repayBlocked && (
+            <p className="-mt-2 text-xs text-muted-foreground">
+              {td('remainingDebt', { amount: formatMoney(selectedDebt.remaining, selectedDebt.currency, locale) })}
+            </p>
+          )}
 
           {overCredit && fromWallet && (
             <p className="-mt-2 text-xs font-medium text-amber-600">
@@ -358,8 +422,8 @@ export function TransactionDialog({
             </div>
           )}
 
-          {/* Qarz qaytarish muddati */}
-          {isDebt && (
+          {/* Qarz qaytarish muddati (faqat yangi qarzda) */}
+          {isDebt && !isRepay && (
             <div className="space-y-2">
               <Label htmlFor="tx-due">{td('dueDate')}</Label>
               <Input id="tx-due" name="dueDate" type="date" />
@@ -412,7 +476,7 @@ export function TransactionDialog({
             />
           </div>
 
-          <SubmitButton />
+          <SubmitButton disabled={repayBlocked} />
         </form>
       </DialogContent>
     </Dialog>

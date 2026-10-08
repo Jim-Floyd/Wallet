@@ -144,6 +144,12 @@
     "rateValue": "Rate: {rate}",
     "overCreditLimit": "Exceeds the credit limit — available on the card: {available}",
     "dayBalance": "Balance",
+    "debtRepay": "Repayment",
+    "selectDebt": "Which debt",
+    "allCategories": "All categories",
+    "uncategorized": "Uncategorized",
+    "filteredCount": "{count, plural, one {# entry} other {# entries}}",
+    "filterByCategory": "Show this category",
     "recurringList": "Recurring payments ({count})",
     "nextOn": "Next: {date}",
     "stopRecurringTitle": "Stop recurring",
@@ -203,7 +209,8 @@
     "limitAmount": "Limit",
     "currency": "Currency",
     "empty": "No budget set for this month",
-    "overLimit": "over the limit!"
+    "overLimit": "over the limit!",
+    "showExpenses": "Show expenses in this category"
   },
   "goals": {
     "title": "Goals",

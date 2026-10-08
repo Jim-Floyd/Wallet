@@ -5,7 +5,7 @@ import { Download } from 'lucide-react';
 
 interface Props {
   locale: string;
-  filters: { type?: string; walletId?: string; from?: string; to?: string };
+  filters: { type?: string; walletId?: string; category?: string; from?: string; to?: string };
 }
 
 export function ExportButton({ locale, filters }: Props) {

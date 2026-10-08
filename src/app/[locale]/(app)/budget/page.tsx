@@ -12,6 +12,9 @@ import { BudgetDialog } from '@/components/budget/budget-dialog';
 import { deleteBudgetAction } from '@/lib/actions/budget';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { dayKey, monthStart } from '@/lib/days';
+import { transactionsHref } from '@/lib/tx-filter';
 
 
 type SearchParams = { month?: string; year?: string };
@@ -38,8 +41,12 @@ export default async function BudgetPage({
   const tCat = await getTranslations('defaultCategories');
   const formatAmount = (n: number, currency: string) => formatMoney(n, currency, locale);
 
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 0, 23, 59, 59);
+  // Oy Toshkent vaqti bo'yicha — Tranzaksiyalar filtridagi jami bilan bir xil chiqishi uchun
+  const start = monthStart(year, month);
+  const end = monthStart(year, month + 1);
+  const spentHref = (category: string) => transactionsHref(locale, {
+    type: 'EXPENSE', category, from: dayKey(start), to: dayKey(new Date(end.getTime() - 1)),
+  });
 
   const [budgets, txs, categories] = await Promise.all([
     prisma.budget.findMany({
@@ -50,7 +57,7 @@ export default async function BudgetPage({
       where: {
         userId: user.id,
         type: 'EXPENSE',
-        date: { gte: start, lte: end },
+        date: { gte: start, lt: end },
         category: { not: null },
       },
       select: { category: true, amount: true, currency: true },
@@ -107,7 +114,13 @@ export default async function BudgetPage({
                 <CardContent className="pt-4 pb-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-semibold">{categoryName(b.category, tCat)}</p>
+                      <Link
+                        href={spentHref(b.category)}
+                        className="font-semibold underline-offset-2 hover:underline"
+                        title={t('showExpenses')}
+                      >
+                        {categoryName(b.category, tCat)}
+                      </Link>
                       <p className={`text-sm ${over ? 'text-red-600' : 'text-muted-foreground'}`}>
                         {formatAmount(spent, b.currency)}
                         {' / '}

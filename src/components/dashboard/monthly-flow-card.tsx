@@ -8,7 +8,8 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // Barcha matnlar serverda formatlanadi (brauzerda o'zbekcha oy nomlari yo'q)
-export type FlowCategory = { label: string; amount: string; pct: number };
+// href — Tranzaksiyalar sahifasi shu kategoriya va oy filtri bilan
+export type FlowCategory = { label: string; amount: string; pct: number; href: string };
 export type FlowItem = { id: string; date: string; title: string; subtitle: string; amount: string };
 
 // Bosh sahifadagi "Oylik daromad/xarajat" kartasi: bosilganda oy ro'yxati — kategoriyalar jami va har bir yozuv
@@ -75,17 +76,22 @@ export function MonthlyFlowCard({
               <section className="-mx-4 max-h-[30vh] shrink-0 space-y-1.5 overflow-y-auto px-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('byCategory')}</p>
                 {categories.map((c) => (
-                  <div key={c.label} className="space-y-0.5">
-                    <div className="flex justify-between gap-2">
-                      <span className="truncate">{c.label}</span>
-                      <span className="shrink-0 tabular-nums">
+                  <Link
+                    key={c.label}
+                    href={c.href}
+                    className="group -mx-1 block space-y-0.5 rounded-md px-1 py-0.5 hover:bg-muted/60"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate group-hover:underline">{c.label}</span>
+                      <span className="flex shrink-0 items-center gap-0.5 tabular-nums">
                         {c.amount} <span className="text-xs text-muted-foreground">({Math.round(c.pct)}%)</span>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                       </span>
                     </div>
                     <div className="h-1 rounded-full bg-muted">
                       <div className={`h-full rounded-full ${bar}`} style={{ width: `${c.pct}%` }} />
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </section>
 

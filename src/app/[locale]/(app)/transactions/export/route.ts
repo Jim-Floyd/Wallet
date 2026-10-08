@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { processRecurring } from '@/lib/recurring-server';
 import * as XLSX from 'xlsx';
-import { debtTxLabel, txTypeWhere } from '@/lib/debt';
+import { debtTxLabel } from '@/lib/debt';
+import { transactionWhere } from '@/lib/tx-filter';
 import { getTranslations } from 'next-intl/server';
-import { dayEnd, dayStart, formatDay } from '@/lib/days';
+import { formatDay } from '@/lib/days';
 import { categoryName } from '@/lib/category-icons';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ locale: string }> }) {
@@ -18,24 +19,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   await processRecurring(user.id);
 
+  // Sahifadagi filtrlar bilan bir xil shart
   const sp = request.nextUrl.searchParams;
-  const type = sp.get('type');
-  const walletId = sp.get('walletId');
-  const from = sp.get('from');
-  const to = sp.get('to');
-
-  const where = {
-    userId: user.id,
-    ...txTypeWhere(type),
-    ...(walletId && { OR: [{ walletId }, { toWalletId: walletId }] }),
-    // Kunlar Toshkent vaqti bo'yicha (sahifadagi filtr bilan bir xil)
-    ...((from || to) && {
-      date: {
-        ...(from && { gte: dayStart(from) }),
-        ...(to && { lt: dayEnd(to) }),
-      },
-    }),
-  };
+  const where = transactionWhere(user.id, {
+    type: sp.get('type'),
+    walletId: sp.get('walletId'),
+    category: sp.get('category'),
+    from: sp.get('from'),
+    to: sp.get('to'),
+  });
 
   const transactions = await prisma.transaction.findMany({
     where,

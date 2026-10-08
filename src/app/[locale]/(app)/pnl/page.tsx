@@ -9,7 +9,9 @@ import { processRecurring } from '@/lib/recurring-server';
 import { balanceEffects } from '@/lib/balance';
 import { categoryName } from '@/lib/category-icons';
 import { CURRENCY_RANK } from '@/lib/currency';
-import { formatDay, monthStart, parseMonthParams } from '@/lib/days';
+import { dayKey, formatDay, monthStart, parseMonthParams } from '@/lib/days';
+import { transactionsHref, UNCATEGORIZED } from '@/lib/tx-filter';
+import Link from 'next/link';
 import { debtProgress } from '@/lib/debt';
 import { formatMoneySigned } from '@/lib/intl';
 
@@ -192,6 +194,10 @@ export default async function PnlPage({
     return f.income || f.expense || f.debt || f.transfer || openingBalance.get(c) || closingBalance.get(c);
   });
   const catLabel = (key: string) => (key ? categoryName(key, tCat) : t('uncategorized'));
+  // Kategoriya qatorini bosish — Tranzaksiyalar shu kategoriya va oy filtri bilan
+  const catHref = (type: 'INCOME' | 'EXPENSE', key: string) => transactionsHref(locale, {
+    type, category: key || UNCATEGORIZED, from: dayKey(start), to: dayKey(new Date(end.getTime() - 1)),
+  });
   const monthLabel = (d: Date) => formatDay(d, locale, { month: 'short', year: 'numeric' });
 
   return (
@@ -243,10 +249,14 @@ export default async function PnlPage({
                     <span className="tabular-nums text-green-600">+{fmt(f.income, cur)}</span>
                   </div>
                   {sorted(cats.income).map(([key, v]) => (
-                    <div key={key} className="flex justify-between text-muted-foreground">
+                    <Link
+                      key={key}
+                      href={catHref('INCOME', key)}
+                      className="flex justify-between text-muted-foreground hover:text-foreground hover:underline"
+                    >
                       <span className="truncate">{catLabel(key)}</span>
                       <span className="tabular-nums">{fmt(v, cur)}</span>
-                    </div>
+                    </Link>
                   ))}
                 </section>
                 <section className="space-y-1.5">
@@ -257,15 +267,15 @@ export default async function PnlPage({
                   {sorted(cats.expense).map(([key, v]) => {
                     const pct = f.expense > 0 ? (v / f.expense) * 100 : 0;
                     return (
-                      <div key={key} className="space-y-0.5">
-                        <div className="flex justify-between text-muted-foreground">
-                          <span className="truncate">{catLabel(key)}</span>
+                      <Link key={key} href={catHref('EXPENSE', key)} className="group block space-y-0.5">
+                        <div className="flex justify-between text-muted-foreground group-hover:text-foreground">
+                          <span className="truncate group-hover:underline">{catLabel(key)}</span>
                           <span className="tabular-nums">{fmt(v, cur)} <span className="text-xs">({Math.round(pct)}%)</span></span>
                         </div>
                         <div className="h-1 rounded-full bg-muted">
                           <div className="h-full rounded-full bg-red-400" style={{ width: `${pct}%` }} />
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </section>

@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown, Wallet, CreditCard, HandCoins } from 'lucide-react';
-import { debtProgress, debtTxLabel } from '@/lib/debt';
+import { debtProgress, debtTxLabel, openDebtOptions } from '@/lib/debt';
 import { dayKey, dueInfo, formatDay, monthStart, parseMonthParams } from '@/lib/days';
 import { MonthlyFlowCard } from '@/components/dashboard/monthly-flow-card';
 import { formatMoney, formatMoneySigned } from '@/lib/intl';
@@ -25,6 +25,7 @@ import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { AddWalletDialog } from '@/components/dashboard/add-wallet-dialog';
 import { TransactionDialog } from '@/components/transactions/transaction-dialog';
+import { transactionsHref, UNCATEGORIZED } from '@/lib/tx-filter';
 
 export default async function DashboardPage({
   params,
@@ -184,6 +185,7 @@ export default async function DashboardPage({
           label: `${c.category ? categoryName(c.category, tCat) : fallback}${multiCurrency ? ` (${c.currency})` : ''}`,
           amount: formatAmount(c.amount, c.currency),
           pct: (c.amount / (totals.get(c.currency) || 1)) * 100,
+          href: transactionsHref(locale, { type, category: c.category ?? UNCATEGORIZED, from: firstDay, to: lastDay }),
         })),
       items: rows.map(tx => ({
         id: tx.id,
@@ -192,7 +194,7 @@ export default async function DashboardPage({
         subtitle: [tx.wallet.name, tx.description].filter(Boolean).join(' · '),
         amount: `${sign}${formatAmount(Number(tx.amount), tx.currency)}`,
       })),
-      href: `/${locale}/transactions?type=${type}&from=${firstDay}&to=${lastDay}`,
+      href: transactionsHref(locale, { type, from: firstDay, to: lastDay }),
     };
   };
   const incomeFlow = monthlyFlow('INCOME');
@@ -426,7 +428,7 @@ export default async function DashboardPage({
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>{t('recentTransactions')}</span>
-              <TransactionDialog wallets={walletList} savedCategories={categoryList} />
+              <TransactionDialog wallets={walletList} savedCategories={categoryList} openDebts={openDebtOptions(debtRows)} />
             </CardTitle>
             <p className="text-xs text-muted-foreground">{monthLabel}</p>
           </CardHeader>

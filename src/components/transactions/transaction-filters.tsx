@@ -6,11 +6,13 @@ import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 type Wallet = { id: string; name: string; currency: string };
+// Kategoriya tanlovi guruhlari (Xarajat / Daromad) — nomlari serverda tarjima qilinadi
+export type CategoryGroup = { label: string; options: { value: string; label: string }[] };
 
 // Nomlari tarjimada: transactions.filter.<value || all>
 const TYPES = ['', 'EXPENSE', 'INCOME', 'TRANSFER', 'DEBT'];
 
-export function TransactionFilters({ wallets }: { wallets: Wallet[] }) {
+export function TransactionFilters({ wallets, categoryGroups }: { wallets: Wallet[]; categoryGroups: CategoryGroup[] }) {
   const t = useTranslations('transactions');
   const router = useRouter();
   const pathname = usePathname();
@@ -18,10 +20,11 @@ export function TransactionFilters({ wallets }: { wallets: Wallet[] }) {
 
   const type = searchParams.get('type') ?? '';
   const walletId = searchParams.get('walletId') ?? '';
+  const category = searchParams.get('category') ?? '';
   const from = searchParams.get('from') ?? '';
   const to = searchParams.get('to') ?? '';
 
-  const hasFilters = type || walletId || from || to;
+  const hasFilters = type || walletId || category || from || to;
 
   const set = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -61,6 +64,20 @@ export function TransactionFilters({ wallets }: { wallets: Wallet[] }) {
         <option value="">{t('allWallets')}</option>
         {wallets.map((w) => (
           <option key={w.id} value={w.id}>{w.name} ({w.currency})</option>
+        ))}
+      </select>
+
+      {/* Kategoriya */}
+      <select
+        value={category}
+        onChange={(e) => set('category', e.target.value)}
+        className="h-9 max-w-[14rem] rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+      >
+        <option value="">{t('allCategories')}</option>
+        {categoryGroups.map((g) => (
+          <optgroup key={g.label} label={g.label}>
+            {g.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </optgroup>
         ))}
       </select>
 

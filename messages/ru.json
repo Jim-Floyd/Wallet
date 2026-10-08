@@ -144,6 +144,12 @@
     "rateValue": "Курс: {rate}",
     "overCreditLimit": "Превышает кредитный лимит — доступно на карте: {available}",
     "dayBalance": "Остаток",
+    "debtRepay": "Возврат",
+    "selectDebt": "Какой долг",
+    "allCategories": "Все категории",
+    "uncategorized": "Без категории",
+    "filteredCount": "{count, plural, one {# запись} few {# записи} other {# записей}}",
+    "filterByCategory": "Показать по этой категории",
     "recurringList": "Регулярные платежи ({count})",
     "nextOn": "Следующий: {date}",
     "stopRecurringTitle": "Остановить повтор",
@@ -203,7 +209,8 @@
     "limitAmount": "Лимит",
     "currency": "Валюта",
     "empty": "Бюджет на этот месяц не задан",
-    "overLimit": "лимит превышен!"
+    "overLimit": "лимит превышен!",
+    "showExpenses": "Показать расходы по категории"
   },
   "goals": {
     "title": "Цели",
