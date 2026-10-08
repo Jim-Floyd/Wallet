@@ -11,6 +11,7 @@ import { WalletAvatar } from '@/components/wallets/wallet-avatar';
 import { CreditUsage } from '@/components/wallets/credit-usage';
 import { deleteWallet } from '@/lib/actions/wallet';
 import { creditInfo } from '@/lib/credit';
+import { walletEffectTotals } from '@/lib/balance';
 import { getTranslations } from 'next-intl/server';
 import { intlLocale } from '@/lib/intl';
 
@@ -36,10 +37,15 @@ export default async function WalletsPage({ params }: { params: Promise<{ locale
   if (!user) redirect(`/${locale}/auth/login`);
   await processRecurring(user.id);
 
-  const wallets = await prisma.wallet.findMany({
-    where: { userId: user.id },
-    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-  });
+  const [wallets, effectTotals] = await Promise.all([
+    prisma.wallet.findMany({
+      where: { userId: user.id },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    }),
+    walletEffectTotals(user.id),
+  ]);
+  // Boshlang'ich qoldiq = hozirgi balans − barcha tranzaksiyalar ta'siri (tahrirlash oynasi uchun)
+  const openingOf = (w: (typeof wallets)[number]) => Number(w.balance) - (effectTotals.get(w.id) ?? 0);
 
   return (
     <div className="space-y-6">
@@ -100,6 +106,8 @@ export default async function WalletsPage({ params }: { params: Promise<{ locale
                         isDefault: wallet.isDefault,
                         kind: wallet.kind,
                         creditLimit: wallet.creditLimit == null ? null : Number(wallet.creditLimit),
+                        balance: Number(wallet.balance),
+                        opening: openingOf(wallet),
                       }}
                     />
                     {!wallet.isDefault && (

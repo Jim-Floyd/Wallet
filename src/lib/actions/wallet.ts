@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { getTranslations } from 'next-intl/server';
 import { WALLET_ICON_KEYS } from '@/lib/wallet-icons';
 import { parseWalletKind, type WalletKindValue } from '@/lib/credit';
+import { walletEffectTotals } from '@/lib/balance';
 
 export type WalletState = { error?: string; success?: boolean } | null;
 
@@ -109,6 +110,19 @@ export async function updateWallet(_: WalletState, formData: FormData): Promise<
   const wallet = await prisma.wallet.findFirst({ where: { id, userId: user.id } });
   if (!wallet) return { error: t('walletNotFound') };
 
+  // Boshlang'ich qoldiq (debet) yoki boshlang'ich qarz (kredit) o'zgarsa — hozirgi balans shu farqqa siljiydi,
+  // tranzaksiyalar o'zgarmaydi. Eski qiymat serverda qayta hisoblanadi; maydon yuborilmasa — o'zgarish yo'q, bo'sh — 0
+  const openingField = formData.get(kind === 'CREDIT' ? 'openingDebt' : 'openingBalance') as string | null;
+  let balanceDelta = 0;
+  if (openingField != null) {
+    const value = openingField === '' ? 0 : parseFloat(openingField);
+    if (isNaN(value) || value < 0) return { error: t('invalidAmount') };
+    const newOpening = kind === 'CREDIT' ? -value : value;
+    const effects = (await walletEffectTotals(user.id, [id])).get(id) ?? 0;
+    const currentOpening = Number(wallet.balance) - effects;
+    balanceDelta = Math.round((newOpening - currentOpening) * 100) / 100;
+  }
+
   await prisma.$transaction([
     // Asosiy hamyon bitta bo'ladi: avvalgisidan belgi olinadi
     ...(makeDefault && !wallet.isDefault
@@ -116,7 +130,11 @@ export async function updateWallet(_: WalletState, formData: FormData): Promise<
       : []),
     prisma.wallet.update({
       where: { id },
-      data: { name, color, icon, kind, creditLimit: credit.creditLimit, ...(makeDefault && { isDefault: true }) },
+      data: {
+        name, color, icon, kind, creditLimit: credit.creditLimit,
+        ...(makeDefault && { isDefault: true }),
+        ...(balanceDelta !== 0 && { balance: { increment: balanceDelta } }),
+      },
     }),
   ]);
   revalidatePath('/', 'layout');

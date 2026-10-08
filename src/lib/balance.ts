@@ -47,3 +47,37 @@ export function balanceUpdates(effects: BalanceEffect[]) {
 }
 
 export const isDebtType = (type: TransactionType) => type === 'DEBT_IN' || type === 'DEBT_OUT';
+
+// Har bir hamyonga barcha tranzaksiyalarning jami ta'siri (balanceEffects bilan bir xil qoida, bazada yig'iladi).
+// Boshlang'ich qoldiq = hozirgi balans − shu jami
+export async function walletEffectTotals(userId: string, walletIds?: string[]) {
+  const ids = walletIds && { in: walletIds };
+  const [bySource, toWithAmount, toPlain] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ['walletId', 'type'],
+      where: { userId, ...(ids && { walletId: ids }) },
+      _sum: { amount: true },
+    }),
+    prisma.transaction.groupBy({
+      by: ['toWalletId'],
+      where: { userId, type: 'TRANSFER', toWalletId: ids ?? { not: null }, toAmount: { not: null } },
+      _sum: { toAmount: true },
+    }),
+    prisma.transaction.groupBy({
+      by: ['toWalletId'],
+      where: { userId, type: 'TRANSFER', toWalletId: ids ?? { not: null }, toAmount: null },
+      _sum: { amount: true },
+    }),
+  ]);
+  const totals = new Map<string, number>();
+  const add = (id: string | null, delta: number) => {
+    if (id) totals.set(id, (totals.get(id) ?? 0) + delta);
+  };
+  for (const r of bySource) {
+    const sum = Number(r._sum.amount ?? 0);
+    add(r.walletId, r.type === 'INCOME' || r.type === 'DEBT_IN' ? sum : -sum);
+  }
+  for (const r of toWithAmount) add(r.toWalletId, Number(r._sum.toAmount ?? 0));
+  for (const r of toPlain) add(r.toWalletId, Number(r._sum.amount ?? 0));
+  return totals;
+}

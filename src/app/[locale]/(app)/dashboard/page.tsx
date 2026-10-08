@@ -6,7 +6,7 @@ import { debtProgress, debtTxLabel, openDebtOptions } from '@/lib/debt';
 import { dayKey, dueInfo, formatDay, monthStart, parseMonthParams } from '@/lib/days';
 import { MonthlyFlowCard } from '@/components/dashboard/monthly-flow-card';
 import { formatMoney, formatMoneySigned } from '@/lib/intl';
-import { balanceEffects } from '@/lib/balance';
+import { balanceEffects, walletEffectTotals } from '@/lib/balance';
 import { CURRENCY_RANK } from '@/lib/currency';
 import { MonthNav } from '@/components/month-nav';
 import { Suspense } from 'react';
@@ -59,7 +59,7 @@ export default async function DashboardPage({
   const isPastMonth = monthTo.getTime() <= Date.now();
   const asOfLabel = formatDay(new Date(monthTo.getTime() - 1), locale);
 
-  const [wallets, categories, monthTxs, recentTransactions, debtRows, laterTxs, earlierFrom, earlierTo] = await Promise.all([
+  const [wallets, categories, monthTxs, recentTransactions, debtRows, laterTxs, earlierFrom, earlierTo, effectTotals] = await Promise.all([
     prisma.wallet.findMany({
       where: { userId: user.id },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
@@ -103,7 +103,12 @@ export default async function DashboardPage({
     // Oy oxirigacha yozuvi bor hamyonlar (hamyon keyinroq qo'shilib, eski sana bilan to'ldirilgan bo'lishi mumkin)
     prisma.transaction.groupBy({ by: ['walletId'], where: { userId: user.id, date: { lt: monthTo } } }),
     prisma.transaction.groupBy({ by: ['toWalletId'], where: { userId: user.id, date: { lt: monthTo }, toWalletId: { not: null } } }),
+    // Tahrirlash oynasidagi boshlang'ich qoldiq uchun
+    walletEffectTotals(user.id),
   ]);
+  // Tahrirlash oynasi uchun hozirgi (oy oxiri emas) balans va boshlang'ich qoldiq
+  const currentBalance = new Map(wallets.map(w => [w.id, Number(w.balance)]));
+  const openingOf = (id: string) => (currentBalance.get(id) ?? 0) - (effectTotals.get(id) ?? 0);
 
   // Oy oxiridagi qoldiq = hozirgi qoldiq − keyingi yozuvlar ta'siri.
   // Ko'rsatiladi: oy oxirigacha ochilgan yoki oy oxirigacha yozuvi bor hamyonlar
@@ -332,6 +337,8 @@ export default async function DashboardPage({
                         isDefault: wallet.isDefault,
                         kind: wallet.kind,
                         creditLimit: wallet.creditLimit == null ? null : Number(wallet.creditLimit),
+                        balance: currentBalance.get(wallet.id) ?? 0,
+                        opening: openingOf(wallet.id),
                       }}
                     />
                     {wallet.isDefault ? (
