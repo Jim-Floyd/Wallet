@@ -12,6 +12,7 @@ import { CURRENCY_RANK } from '@/lib/currency';
 import { dayKey, formatDay, monthStart, parseMonthParams } from '@/lib/days';
 import { transactionsHref, UNCATEGORIZED } from '@/lib/tx-filter';
 import Link from 'next/link';
+import { StickyHeader } from '@/components/sticky-header';
 import { debtProgress } from '@/lib/debt';
 import { formatMoneySigned } from '@/lib/intl';
 
@@ -202,12 +203,14 @@ export default async function PnlPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <Suspense>
-          <MonthNav month={month} year={year} />
-        </Suspense>
-      </div>
+      <StickyHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
+          <Suspense>
+            <MonthNav month={month} year={year} />
+          </Suspense>
+        </div>
+      </StickyHeader>
 
       {activeCurrencies.length === 0 && (
         <Card>

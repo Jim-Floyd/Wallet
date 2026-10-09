@@ -42,17 +42,39 @@ function SubmitButton() {
 export function BudgetDialog({ month, year, categories, budget }: Props) {
   const t = useTranslations('budget');
   const tCat = useTranslations('defaultCategories');
+  const tc = useTranslations('common');
+  const tm = useTranslations('months');
   const [open, setOpen] = useState(false);
   const [state, action] = useFormState<BudgetState, FormData>(upsertBudget, null);
+  // Davr: standart — sahifada ochiq oy; tahrirlashda o'zgarmaydi
+  const [periodMonth, setPeriodMonth] = useState(month);
+  const [periodYear, setPeriodYear] = useState(year);
+  const [span, setSpan] = useState(1);
 
   const isEdit = !!budget;
+  const thisYear = new Date().getFullYear();
+  const years = Array.from(new Set([year, thisYear - 1, thisYear, thisYear + 1, thisYear + 2])).sort();
+  const lastIndex = periodMonth - 1 + span - 1;
+  const periodLabel = (m: number, y: number) => `${tm(`m${m}`)} ${y}`;
+  const spanRange = span > 1
+    ? { from: periodLabel(periodMonth, periodYear), to: periodLabel((lastIndex % 12) + 1, periodYear + Math.floor(lastIndex / 12)) }
+    : null;
 
   useEffect(() => {
     if (state?.success) setOpen(false);
   }, [state]);
 
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setPeriodMonth(month);
+      setPeriodYear(year);
+      setSpan(1);
+    }
+    setOpen(next);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={
         isEdit
           ? <Button variant="ghost" size="icon" className="h-7 w-7" />
@@ -66,27 +88,73 @@ export function BudgetDialog({ month, year, categories, budget }: Props) {
           <DialogTitle>{isEdit ? t('editTitle') : t('newTitle')}</DialogTitle>
         </DialogHeader>
         <form action={action} className="space-y-4">
-          <input type="hidden" name="month" value={month} />
-          <input type="hidden" name="year" value={year} />
+          <input type="hidden" name="month" value={periodMonth} />
+          <input type="hidden" name="year" value={periodYear} />
+          <input type="hidden" name="span" value={isEdit ? 1 : span} />
 
           {state?.error && (
             <Alert variant="destructive" className="text-sm py-2">{state.error}</Alert>
           )}
 
+          {/* Davr: qaysi oydan va necha oyga */}
+          <div className="space-y-2">
+            <Label htmlFor="budget-month">{t('period')}</Label>
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <select
+                id="budget-month"
+                value={periodMonth}
+                onChange={(e) => setPeriodMonth(Number(e.target.value))}
+                disabled={isEdit}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={m}>{tm(`m${m}`)}</option>
+                ))}
+              </select>
+              <select
+                aria-label={t('period')}
+                value={periodYear}
+                onChange={(e) => setPeriodYear(Number(e.target.value))}
+                disabled={isEdit}
+                className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+              >
+                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {!isEdit && (
+            <div className="space-y-2">
+              <Label htmlFor="budget-span">{t('span')}</Label>
+              <select
+                id="budget-span"
+                value={span}
+                onChange={(e) => setSpan(Number(e.target.value))}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+              >
+                {[1, 3, 6, 12].map((n) => <option key={n} value={n}>{t('spanOption', { count: n })}</option>)}
+              </select>
+              {spanRange && <p className="text-xs text-muted-foreground">{t('spanHint', spanRange)}</p>}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="category">{t('category')}</Label>
-            <input
+            {/* Ro'yxatdan tanlanadi — nom tranzaksiyalardagi kategoriya bilan aynan mos bo'lishi uchun */}
+            <select
               id="category"
-              name="category"
-              list="cat-list"
+              name={isEdit ? undefined : 'category'}
               defaultValue={budget?.category ?? ''}
-              readOnly={isEdit}
+              disabled={isEdit}
               required
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
-            />
-            <datalist id="cat-list">
-              {categories.map((c) => <option key={c} value={c} label={categoryName(c, tCat)} />)}
-            </datalist>
+            >
+              <option value="" disabled>{tc('select')}</option>
+              {(budget && !categories.includes(budget.category) ? [budget.category, ...categories] : categories).map((c) => (
+                <option key={c} value={c}>{categoryName(c, tCat)}</option>
+              ))}
+            </select>
+            {isEdit && <input type="hidden" name="category" value={budget.category} />}
           </div>
 
           <div className="space-y-2">

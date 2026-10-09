@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Card, CardContent } from '@/components/ui/card';
+import { StickyHeader } from '@/components/sticky-header';
 
 export default async function ReferralPage() {
   const t = await getTranslations('nav');
@@ -7,7 +8,9 @@ export default async function ReferralPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('referral')}</h1>
+      <StickyHeader>
+        <h1 className="text-2xl font-bold">{t('referral')}</h1>
+      </StickyHeader>
 
       <Card>
         <CardContent className="py-10 text-center">

@@ -12,6 +12,7 @@ import { CreditUsage } from '@/components/wallets/credit-usage';
 import { deleteWallet } from '@/lib/actions/wallet';
 import { creditInfo } from '@/lib/credit';
 import { walletEffectTotals } from '@/lib/balance';
+import { StickyHeader } from '@/components/sticky-header';
 import { getTranslations } from 'next-intl/server';
 import { intlLocale } from '@/lib/intl';
 
@@ -49,10 +50,12 @@ export default async function WalletsPage({ params }: { params: Promise<{ locale
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <AddWalletDialog />
-      </div>
+      <StickyHeader>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
+          <AddWalletDialog />
+        </div>
+      </StickyHeader>
 
       {wallets.length === 0 ? (
         <Card>

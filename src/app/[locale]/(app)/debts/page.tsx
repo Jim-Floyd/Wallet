@@ -13,6 +13,7 @@ import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { formatMoney } from '@/lib/intl';
 import { formatDay } from '@/lib/days';
+import { StickyHeader } from '@/components/sticky-header';
 
 
 function sumByCurrency(items: { currency: string; value: number }[]) {
@@ -31,6 +32,7 @@ export default async function DebtsPage({
   const { locale } = await params;
   const { status } = await searchParams;
   const showClosed = status === 'closed';
+  const showStats = status === 'stats';
   const t = await getTranslations('debts');
   const formatAmount = (n: number, currency: string) => formatMoney(n, currency, locale);
   const formatDate = (date: Date) => formatDay(date, locale);
@@ -71,12 +73,69 @@ export default async function DebtsPage({
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
+  // Hisobot: yo'nalish (berilgan/olingan) va valyuta bo'yicha butun davr jami
+  const directionStats = (type: 'LENT' | 'BORROWED') => {
+    const map = new Map<string, { total: number; repaid: number; remaining: number; count: number; closed: number }>();
+    for (const d of debts.filter(x => x.type === type)) {
+      const s = map.get(d.currency) ?? { total: 0, repaid: 0, remaining: 0, count: 0, closed: 0 };
+      s.total += d.progress.amount;
+      s.repaid += d.progress.paid;
+      s.remaining += d.progress.remaining;
+      s.count += 1;
+      if (d.progress.closed) s.closed += 1;
+      map.set(d.currency, s);
+    }
+    return Array.from(map);
+  };
+
+  // Hisobot: odam (ism katta-kichik harfsiz) va valyuta bo'yicha; saldo > 0 — menga qarzdor
+  const people = new Map<string, {
+    person: string; currency: string; lent: number; gotBack: number; borrowed: number; paidBack: number; last: Date;
+  }>();
+  for (const d of debts) {
+    const key = `${d.person.trim().toLowerCase()}::${d.currency}`;
+    const p = people.get(key) ?? { person: d.person.trim(), currency: d.currency, lent: 0, gotBack: 0, borrowed: 0, paidBack: 0, last: d.date };
+    if (d.type === 'LENT') { p.lent += d.progress.amount; p.gotBack += d.progress.paid; }
+    else { p.borrowed += d.progress.amount; p.paidBack += d.progress.paid; }
+    const lastTx = d.transactions.at(-1)?.date ?? d.date;
+    if (lastTx > p.last) p.last = lastTx;
+    people.set(key, p);
+  }
+  const personRows = Array.from(people.values())
+    .map(p => ({ ...p, net: (p.lent - p.gotBack) - (p.borrowed - p.paidBack) }))
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || b.last.getTime() - a.last.getTime());
+
+  // Arxivda: qarz yopilgan sana — oxirgi qaytarish yozuvi
+  const closedOn = (d: (typeof debts)[number]) =>
+    d.transactions.filter(tx => tx.type === repayTxType(d.type)).at(-1)?.date ?? null;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <DebtDialog wallets={walletList} />
-      </div>
+      {/* Sarlavha va tablar (Ochiq / Arxiv / Hisobot) qotib turadi */}
+      <StickyHeader>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
+          <DebtDialog wallets={walletList} />
+        </div>
+
+        <div className="flex w-fit gap-1 rounded-lg bg-muted p-1">
+          {[
+            { href: `/${locale}/debts`, label: t('tabOpen', { count: open.length }), active: !showClosed && !showStats },
+            { href: `/${locale}/debts?status=closed`, label: t('tabClosed', { count: debts.length - open.length }), active: showClosed },
+            { href: `/${locale}/debts?status=stats`, label: t('tabStats'), active: showStats },
+          ].map((tab) => (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                tab.active ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+      </StickyHeader>
 
       {/* Yig'indilar */}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -112,25 +171,89 @@ export default async function DebtsPage({
         </Card>
       </div>
 
-      {/* Ochiq / Yopilgan */}
-      <div className="flex w-fit gap-1 rounded-lg bg-muted p-1">
-        {[
-          { href: `/${locale}/debts`, label: t('tabOpen', { count: open.length }), active: !showClosed },
-          { href: `/${locale}/debts?status=closed`, label: t('tabClosed', { count: debts.length - open.length }), active: showClosed },
-        ].map((tab) => (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              tab.active ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
 
-      {visible.length === 0 ? (
+      {showStats ? (
+        debts.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-muted-foreground">{t('noDebtsYet')}</CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {/* Butun davr: berilgan va olingan qarzlar */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {(['LENT', 'BORROWED'] as const).map((type) => {
+                const rows = directionStats(type);
+                const isLent = type === 'LENT';
+                return (
+                  <Card key={type}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center justify-between text-sm font-medium">
+                        {isLent ? t('lentSection') : t('borrowedSection')}
+                        {isLent
+                          ? <ArrowUpRight className="h-4 w-4 text-green-600" />
+                          : <ArrowDownLeft className="h-4 w-4 text-red-600" />}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      {rows.length === 0 ? (
+                        <p className="text-muted-foreground">—</p>
+                      ) : rows.map(([cur, s]) => (
+                        <div key={cur} className="space-y-1">
+                          <div className="flex justify-between font-semibold">
+                            <span>{t('statTotal')}</span>
+                            <span className="tabular-nums">{formatAmount(s.total, cur)}</span>
+                          </div>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>{isLent ? t('statRepaid') : t('statPaid')}</span>
+                            <span className="tabular-nums">{formatAmount(s.repaid, cur)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>{t('statRemaining')}</span>
+                            <span className={`tabular-nums font-medium ${s.remaining > 0 ? (isLent ? 'text-green-600' : 'text-red-600') : ''}`}>
+                              {formatAmount(s.remaining, cur)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{t('statCount', { closed: s.closed, total: s.count })}</p>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Odamlar bo'yicha: kim bilan qancha oldi-berdi va hozirgi saldo */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">{t('byPerson')}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y">
+                  {personRows.map((p) => (
+                    <div key={`${p.person}::${p.currency}`} className="space-y-1 px-4 py-3 text-sm">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <span className="font-semibold">{p.person}</span>
+                        <span className={`font-semibold tabular-nums ${p.net > 0 ? 'text-green-600' : p.net < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                          {p.net > 0
+                            ? t('netOwesMe', { amount: formatAmount(p.net, p.currency) })
+                            : p.net < 0
+                              ? t('netIOwe', { amount: formatAmount(-p.net, p.currency) })
+                              : t('netSettled')}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
+                        {p.lent > 0 && <span>{t('personLent')}: {formatAmount(p.lent, p.currency)} · {t('personGotBack')}: {formatAmount(p.gotBack, p.currency)}</span>}
+                        {p.borrowed > 0 && <span>{t('personBorrowed')}: {formatAmount(p.borrowed, p.currency)} · {t('personPaidBack')}: {formatAmount(p.paidBack, p.currency)}</span>}
+                        <span>{formatDate(p.last)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      ) : visible.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
             {showClosed ? t('noClosed') : t('noOpen')}
@@ -160,7 +283,8 @@ export default async function DebtsPage({
                       <p className="text-xs text-muted-foreground mt-1">
                         {formatDate(d.date)}
                         {' • '}{d.transactions.find(t => t.type === initialTxType(d.type))?.wallet.name ?? t('noWallet')}
-                        {d.dueDate && <> • {t('due')}: <span className={overdue ? 'text-red-600 font-medium' : ''}>{formatDate(d.dueDate)}</span></>}
+                        {d.dueDate && !closed && <> • {t('due')}: <span className={overdue ? 'text-red-600 font-medium' : ''}>{formatDate(d.dueDate)}</span></>}
+                        {closed && closedOn(d) && <> • {t('closedOn', { date: formatDate(closedOn(d)!) })}</>}
                         {d.phone && <> • {d.phone}</>}
                       </p>
                       {d.description && <p className="text-xs text-muted-foreground">{d.description}</p>}

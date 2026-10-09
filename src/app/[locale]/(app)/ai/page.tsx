@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Bot } from 'lucide-react';
+import { StickyHeader } from '@/components/sticky-header';
 
 export default async function AiPage() {
   const t = await getTranslations('nav');
@@ -8,7 +9,9 @@ export default async function AiPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('ai')}</h1>
+      <StickyHeader>
+        <h1 className="text-2xl font-bold">{t('ai')}</h1>
+      </StickyHeader>
 
       <Card className="flex flex-col" style={{ height: 'calc(100vh - 12rem)' }}>
         <CardHeader className="border-b">

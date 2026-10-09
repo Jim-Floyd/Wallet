@@ -32,9 +32,40 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Grafiklar (Tahlil): ranglar vazifa bo'yicha, CVD tekshiruvidan o'tgan (dataviz validator, karta foni #fff).
+       series-1 — daromad, series-2 — xarajat; ink-2 — neytral chiziq (sof natija); matn hech qachon seriya rangida emas */
+    --viz-series-1: #2a78d6;
+    --viz-series-2: #eb6834;
+    --viz-ink-2: #52514e;
+    --viz-muted: #898781;
+    --viz-grid: #e1e0d9;
+    --viz-axis: #c3c2b7;
+    /* Kategoriyalar: qat'iy tartib (slot 1..5), kategoriyaga butun davr bo'yicha o'rni bilan biriktiriladi — davr
+       almashsa rang o'zgarmaydi. Uch slot oq fonda 3:1 dan past — yonida doim nom/summa/foiz ko'rinadi */
+    --viz-cat-1: #2a78d6;
+    --viz-cat-2: #eb6834;
+    --viz-cat-3: #1baf7a;
+    --viz-cat-4: #eda100;
+    --viz-cat-5: #e87ba4;
+    --viz-other: #b5b3ab;
   }
 
   .dark {
+    /* Qorong'i rejim uchun alohida qadamlar (fon #020817 ga nisbatan tekshirilgan) */
+    --viz-series-1: #3987e5;
+    --viz-series-2: #d95926;
+    --viz-ink-2: #c3c2b7;
+    --viz-muted: #898781;
+    --viz-grid: #2c2c2a;
+    --viz-axis: #383835;
+    --viz-cat-1: #3987e5;
+    --viz-cat-2: #d95926;
+    --viz-cat-3: #199e70;
+    --viz-cat-4: #c98500;
+    --viz-cat-5: #d55181;
+    --viz-other: #5c5b56;
+
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
@@ -72,6 +103,13 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Recharts: sichqoncha bilan bosilganda grafik ustida brauzer fokus ramkasi (to'rtburchak) chiqmasin;
+   klaviatura fokusida (focus-visible) ramka qoladi */
+.recharts-wrapper :focus:not(:focus-visible),
+.recharts-wrapper:focus:not(:focus-visible) {
+  outline: none;
 }
 
 @layer utilities {

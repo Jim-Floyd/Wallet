@@ -9,6 +9,7 @@ import { debtTxLabel, openDebtOptions } from '@/lib/debt';
 import { transactionWhere, transactionsHref, UNCATEGORIZED } from '@/lib/tx-filter';
 import { CURRENCY_RANK } from '@/lib/currency';
 import Link from 'next/link';
+import { StickyHeader } from '@/components/sticky-header';
 import { TransactionFilters } from '@/components/transactions/transaction-filters';
 import { Pagination } from '@/components/transactions/pagination';
 import { ExportButton } from '@/components/transactions/export-button';
@@ -265,14 +266,34 @@ export default async function TransactionsPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <div className="flex items-center gap-2">
-          <ImportDialog locale={locale} />
-          <ExportButton locale={locale} filters={filters} />
-          <TransactionDialog wallets={walletList} savedCategories={categoryList} openDebts={openDebtOptions(debtRows)} />
+      {/* Sarlavha, tugmalar, filtrlar va natija jami aylantirganda tepada qotib turadi */}
+      <StickyHeader>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
+          <div className="flex items-center gap-2">
+            <ImportDialog locale={locale} />
+            <ExportButton locale={locale} filters={filters} />
+            <TransactionDialog wallets={walletList} savedCategories={categoryList} openDebts={openDebtOptions(debtRows)} />
+          </div>
         </div>
-      </div>
+
+        <Suspense>
+          <TransactionFilters wallets={walletList} categoryGroups={categoryGroups} />
+        </Suspense>
+
+        {/* Filtr natijasi: nechta yozuv va kirim/chiqim jami */}
+        {hasFilters && total > 0 && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
+            <span className="text-muted-foreground">{t('filteredCount', { count: total })}</span>
+            {summary.map(({ currency, income, expense }) => (
+              <span key={currency} className="flex flex-wrap gap-x-3 font-semibold tabular-nums">
+                {income != null && <span className="text-green-600">+{formatAmount(income, currency)}</span>}
+                {expense != null && <span className="text-red-600">-{formatAmount(expense, currency)}</span>}
+              </span>
+            ))}
+          </div>
+        )}
+      </StickyHeader>
 
       {recurringRules.length > 0 && (
         <Card>
@@ -331,25 +352,6 @@ export default async function TransactionsPage({
         </Card>
       )}
 
-      {/* Filtrlar va natija jami aylantirganda tepada qotib turadi (main — aylanuvchi konteyner, padding'i qoplanadi) */}
-      <div className="sticky top-0 z-20 -mx-4 space-y-3 border-b bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
-        <Suspense>
-          <TransactionFilters wallets={walletList} categoryGroups={categoryGroups} />
-        </Suspense>
-
-        {/* Filtr natijasi: nechta yozuv va kirim/chiqim jami */}
-        {hasFilters && total > 0 && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
-            <span className="text-muted-foreground">{t('filteredCount', { count: total })}</span>
-            {summary.map(({ currency, income, expense }) => (
-              <span key={currency} className="flex flex-wrap gap-x-3 font-semibold tabular-nums">
-                {income != null && <span className="text-green-600">+{formatAmount(income, currency)}</span>}
-                {expense != null && <span className="text-red-600">-{formatAmount(expense, currency)}</span>}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
 
       {transactions.length === 0 ? (
         <Card>

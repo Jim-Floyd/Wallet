@@ -14,5 +14,21 @@ export function formatMoneySigned(amount: number, currency: string, locale: stri
   return `${rounded < 0 ? '-' : ''}${formatMoney(rounded, currency, locale)}`;
 }
 
+// Grafik o'qlari uchun ixcham son: "1,5 mln", "250 ming". Brauzer ICU'sida o'zbekcha qisqartmalar yo'q — o'zimiz
+const COMPACT_UNITS: Record<string, [number, string][]> = {
+  uz: [[1e9, ' mlrd'], [1e6, ' mln'], [1e3, ' ming']],
+  ru: [[1e9, ' млрд'], [1e6, ' млн'], [1e3, ' тыс']],
+  en: [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']],
+};
+
+export function formatCompact(n: number, locale: string) {
+  const units = COMPACT_UNITS[locale] ?? COMPACT_UNITS.uz;
+  const fmt = (v: number) => new Intl.NumberFormat(intlLocale(locale), { maximumFractionDigits: 1 }).format(v);
+  for (const [value, suffix] of units) {
+    if (Math.abs(n) >= value) return `${fmt(n / value)}${suffix}`;
+  }
+  return fmt(n);
+}
+
 // next-intl tarjima funksiyasining sof lib'larga uzatiladigan soddalashtirilgan turi
 export type Translate = (key: string, values?: Record<string, string | number>) => string;

@@ -26,6 +26,7 @@ import { redirect } from 'next/navigation';
 import { AddWalletDialog } from '@/components/dashboard/add-wallet-dialog';
 import { TransactionDialog } from '@/components/transactions/transaction-dialog';
 import { transactionsHref, UNCATEGORIZED } from '@/lib/tx-filter';
+import { StickyHeader } from '@/components/sticky-header';
 
 export default async function DashboardPage({
   params,
@@ -207,12 +208,14 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <Suspense>
-          <MonthNav month={month} year={year} />
-        </Suspense>
-      </div>
+      <StickyHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
+          <Suspense>
+            <MonthNav month={month} year={year} />
+          </Suspense>
+        </div>
+      </StickyHeader>
 
       {/* Summary cards */}
       <div className="grid gap-4 md:grid-cols-3">

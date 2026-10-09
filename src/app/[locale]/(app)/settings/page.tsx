@@ -8,6 +8,7 @@ import { PasswordForm } from '@/components/settings/password-form';
 import { logout } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
+import { StickyHeader } from '@/components/sticky-header';
 import { getTranslations } from 'next-intl/server';
 
 export default async function SettingsPage({
@@ -29,9 +30,12 @@ export default async function SettingsPage({
   const currency = dbUser?.currency ?? 'UZS';
 
   return (
-    <div className="space-y-6 max-w-lg">
-      <h1 className="text-2xl font-bold">{t('title')}</h1>
+    <div className="space-y-6">
+      <StickyHeader>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
+      </StickyHeader>
 
+      <div className="max-w-lg space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>{t('profile')}</CardTitle>
@@ -71,6 +75,7 @@ export default async function SettingsPage({
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
