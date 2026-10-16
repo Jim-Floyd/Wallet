@@ -76,6 +76,8 @@
     "agreeTerms": "Davom etish orqali foydalanish shartlariga rozilik bildirasiz"
   },
   "dashboard": {
+    "seeAllTransactions": "Oyning barcha tranzaksiyalari",
+    "investmentsLine": "Investitsiyalar: {amount}",
     "title": "Bosh sahifa",
     "totalBalance": "Umumiy balans",
     "monthlyIncome": "Oylik daromad",
@@ -159,6 +161,14 @@
     "empty": "Hali tranzaksiya mavjud emas"
   },
   "wallets": {
+    "initialInvested": "Hozirgacha kiritilgan summa ({currency})",
+    "initialInvestedHint": "Agar investitsiya oldindan bor bo'lsa — unga hozirgacha kiritilgan pul. Yangi bo'lsa — 0, keyin \"Kiritish\" bilan qo'shasiz",
+    "invested": "Kiritilgan",
+    "investmentResult": "Natija",
+    "earnedPart": "Olingan daromad",
+    "revaluationPart": "Qayta baholash",
+    "valuedAt": "Baholangan: {date}",
+    "contribute": "Kiritish",
     "title": "Hamyonlar",
     "uzcard": "UzCard",
     "humo": "Humo",
@@ -175,10 +185,12 @@
     "initialBalance": "Boshlang'ich balans ({currency})",
     "kind": "Turi",
     "kinds": {
+      "INVESTMENT": "Investitsiya",
       "DEBIT": "Debet",
       "CREDIT": "Kredit"
     },
     "kindHints": {
+      "INVESTMENT": "Depozit, aksiya, biznes ulushi, mol boqish... Pul kiritish — o'tkazma (xarajat emas), daromad va sotishdagi foyda — daromad",
       "DEBIT": "O'z pulingiz: naqd, plastik, omonat",
       "CREDIT": "Kredit karta yoki kredit liniyasi: qoldiq 0 dan pastga tushadi, manfiy qoldiq — bank oldidagi qarz"
     },
@@ -379,6 +391,8 @@
     "icon": "Belgi"
   },
   "defaultCategories": {
+    "investmentIncome": "Investitsiya daromadi",
+    "investmentLoss": "Investitsiya zarari",
     "salary": "Maosh",
     "bonus": "Bonus",
     "freelance": "Freelance",
@@ -403,6 +417,22 @@
     "RUB": "Rubl"
   },
   "debts": {
+    "openDebtsCount": "{count} ta ochiq qarz",
+    "tabPeople": "Kontragentlar ({count})",
+    "peopleTitle": "Kontragentlar",
+    "peopleHint": "Bir kontragent ikki xil yozilib qolgan bo'lsa (masalan lotin va kirillda) — birlashtirish tugmasi bilan bittaga qo'shing",
+    "peopleDebts": "{count} ta qarz, {open} tasi ochiq",
+    "noPeople": "Hali kontragentlar yo'q. Qarz qo'shganda \"+\" bilan qo'shiladi",
+    "deletePersonTitle": "Kontragentni o'chirish",
+    "deletePersonDescription": "\"{name}\" ro'yxatdan o'chiriladi. Unda qarz yozuvlari yo'q",
+    "creditCardsTitle": "Kredit kartalar",
+    "creditCardsHint": "Kartaning manfiy qoldig'i — bank oldidagi qarz. To'lov — kartaga o'tkazma",
+    "cardDebt": "Qarz: {amount}",
+    "noCardDebt": "Qarz yo'q",
+    "payCard": "To'lash",
+    "plusCards": "+ kredit kartalar: {amount}",
+    "editAmountHint": "Summa o'zgarsa, qarz berilgan/olingan yozuv va hamyon balansi avtomatik to'g'rilanadi",
+    "editAmountHintPaid": "Allaqachon {paid} qaytarilgan — summa bundan kam bo'lolmaydi. Hamyon balansi avtomatik to'g'rilanadi",
     "title": "Qarzlar",
     "add": "Qarz qo'shish",
     "newTitle": "Yangi qarz",
@@ -479,6 +509,11 @@
     "noDebtsYet": "Hali qarz yozuvlari yo'q"
   },
   "errors": {
+    "counterpartyExists": "\"{name}\" ro'yxatda allaqachon bor",
+    "selectPerson": "Kontragentni tanlang",
+    "counterpartyHasDebts": "Bu kontragentda {count} ta qarz bor — o'chirish o'rniga boshqasi bilan birlashtiring",
+    "debtAmountBelowPaid": "Bu qarzdan {amount} {currency} allaqachon qaytarilgan — summa bundan kam bo'lolmaydi",
+    "invalidShare": "Sotilgan ulush 0 dan katta va 100% dan oshmasligi kerak",
     "requiredTxFields": "Hamyon, tur va miqdor kiritilishi shart",
     "walletNotFound": "Hamyon topilmadi",
     "selectTargetWallet": "Qabul qiluvchi hamyonni tanlang",
@@ -537,6 +572,8 @@
     }
   },
   "pnl": {
+    "investments": "Investitsiyalar",
+    "investmentRevaluation": "Investitsiyalarni qayta baholash",
     "title": "Balans va PNL",
     "empty": "Bu oyda harakat yo'q",
     "pnlFor": "Foyda va zarar · {currency}",
@@ -710,5 +747,47 @@
     "category": "Kategoriya",
     "perMonthAvg": "Oyiga o'rtacha",
     "periodTotal": "Jami"
+  },
+  "investments": {
+    "income": "Daromad",
+    "incomeTitle": "{name}: daromad",
+    "incomeHint": "Investitsiyadan tushgan foyda — oylik daromadga kiradi",
+    "incomeWhere": "Qayerga",
+    "keepInside": "{name} ichida qoldirish (qayta investitsiya)",
+    "amount": "Summa",
+    "date": "Sana",
+    "note": "Izoh (ixtiyoriy)",
+    "notePlaceholder": "Qo'shimcha ma'lumot...",
+    "revalue": "Qiymat",
+    "revalueTitle": "{name}: joriy qiymat",
+    "revalueHint": "Hozir bu investitsiya qancha turadi? Hisobdagi qiymat: {book}. Daromadga kirmaydi",
+    "currentValue": "Joriy qiymat",
+    "revaluation": "Qayta baholash",
+    "sell": "Sotish",
+    "sellTitle": "{name}: sotish / chiqarish",
+    "sellHint": "Olingan pul tanlangan hamyonga tushadi. Tannarx qismi qaytadi, ortig'i daromad, kami zarar bo'lib yoziladi",
+    "received": "Olingan summa",
+    "share": "Sotilgan %",
+    "sellTo": "Qaysi hamyonga",
+    "noTargetWallet": "{currency} valyutasida boshqa hamyon yo'q",
+    "principalBack": "Qaytgan tannarx",
+    "profit": "Foyda (daromad)",
+    "loss": "Zarar"
+  },
+  "counterparties": {
+    "add": "Kontragent qo'shish",
+    "newTitle": "Yangi kontragent",
+    "editTitle": "Kontragentni tahrirlash",
+    "editHint": "Ism o'zgarsa, uning barcha qarzlarida ham yangilanadi",
+    "name": "Ism",
+    "namePlaceholder": "Masalan: Ali aka",
+    "phone": "Telefon (ixtiyoriy)",
+    "note": "Izoh (ixtiyoriy)",
+    "select": "Tanlang",
+    "emptyHint": "Ro'yxat bo'sh — \"+\" bilan birinchi kontragentni qo'shing",
+    "mergeTitle": "{name} — birlashtirish",
+    "mergeHint": "{name}ning barcha qarzlari tanlangan kontragentga o'tadi va bu yozuv o'chiriladi. Bir kontragent ikki xil yozilib qolganda ishlating",
+    "mergeInto": "Kimga qo'shilsin",
+    "merge": "Birlashtirish"
   }
 }

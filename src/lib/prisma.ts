@@ -10,9 +10,21 @@ function createPrismaClient() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const globalForPrisma = globalThis as unknown as { prisma: any };
+const globalForPrisma = globalThis as unknown as { prisma?: any; prismaClass?: unknown };
 
-export const prisma: PrismaClient =
-  globalForPrisma.prisma ?? createPrismaClient();
+// Dev'da klient globalThis'da saqlanadi — HMR har safar yangi ulanishlar ochmasin. Lekin sxema o'zgarib
+// klient qayta yaratilsa (`prisma generate`), modul yangi PrismaClient klassi bilan qayta yuklanadi:
+// eski nusxada yangi modellar yo'q ("Cannot read properties of undefined (reading 'findMany')"),
+// shuning uchun klass o'zgargan bo'lsa eski klient yopilib, yangisi yaratiladi
+function getPrismaClient(): PrismaClient {
+  if (globalForPrisma.prisma && globalForPrisma.prismaClass === PrismaClient) return globalForPrisma.prisma;
+  void globalForPrisma.prisma?.$disconnect?.().catch(() => {});
+  const client = createPrismaClient();
+  if (process.env.NODE_ENV !== 'production') {
+    globalForPrisma.prisma = client;
+    globalForPrisma.prismaClass = PrismaClient;
+  }
+  return client;
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+export const prisma: PrismaClient = getPrismaClient();

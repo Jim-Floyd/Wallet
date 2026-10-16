@@ -24,6 +24,7 @@ model User {
   budgets       Budget[]
   goals         Goal[]
   debts         Debt[]
+  counterparties Counterparty[]
   recurringRules RecurringRule[]
   referrals     Referral[]    @relation("referrer")
   referredBy    Referral?     @relation("referred")
@@ -37,6 +38,10 @@ model Wallet {
   currency     String          @default("UZS")
   kind         WalletKind      @default(DEBIT)
   creditLimit  Decimal?        @db.Decimal(15, 2) // faqat CREDIT; qoldiq manfiy — ishlatilgan qarz
+  // Faqat INVESTMENT: joriy (bozor) qiymat − balans (hisobdagi qiymat). Qiymat yangilanganda saqlanadi;
+  // kiritish/chiqarishda balans o'zgarsa joriy qiymat ham shunga ergashadi. Daromadga kirmaydi (realizatsiya qilinmagan)
+  valuationGain Decimal        @default(0) @db.Decimal(15, 2)
+  valuedAt     DateTime?
   cardNumber   String?
   color        String?
   icon         String?
@@ -55,6 +60,7 @@ model Wallet {
 enum WalletKind {
   DEBIT
   CREDIT
+  INVESTMENT
 }
 
 model Transaction {
@@ -126,6 +132,9 @@ model Debt {
   id           String        @id @default(cuid())
   userId       String
   type         DebtType
+  // Kim bilan: counterpartyId — "Odamlar" ro'yxatidagi yozuv; person — uning nomi (nusxa, nom o'zgarsa
+  // birga yangilanadi; ro'yxatlar, eksport va tranzaksiya nomlari shu maydondan o'qiydi)
+  counterpartyId String?
   person       String
   phone        String?
   amount       Decimal       @db.Decimal(15, 2)
@@ -137,7 +146,24 @@ model Debt {
   updatedAt    DateTime      @updatedAt
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
   transactions Transaction[]
+}
+
+// Qarz bo'yicha odamlar (kontaktlar): bir odam bilan bir necha marta oldi-berdi — bitta yozuvga bog'lanadi.
+// Nom foydalanuvchi ichida yagona (ilovada katta-kichik harfsiz ham tekshiriladi)
+model Counterparty {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  phone     String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debts     Debt[]
+
+  @@unique([userId, name])
 }
 
 enum DebtType {

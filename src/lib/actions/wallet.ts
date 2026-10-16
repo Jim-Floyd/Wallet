@@ -132,6 +132,8 @@ export async function updateWallet(_: WalletState, formData: FormData): Promise<
       where: { id },
       data: {
         name, color, icon, kind, creditLimit: credit.creditLimit,
+        // Qayta baholash faqat investitsiyada ma'noli — boshqa turga o'tsa tozalanadi
+        ...(kind !== 'INVESTMENT' && { valuationGain: 0, valuedAt: null }),
         ...(makeDefault && { isDefault: true }),
         ...(balanceDelta !== 0 && { balance: { increment: balanceDelta } }),
       },

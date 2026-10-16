@@ -12,7 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { SELECT_CLS } from '@/components/transactions/transaction-dialog';
 import { toDateInput } from '@/lib/form-date';
 import { Loader2, Pencil, Plus } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatMoney } from '@/lib/intl';
+import { CounterpartyPicker } from '@/components/counterparties/counterparty-picker';
+import type { CounterpartyOption } from '@/lib/counterparty';
 
 const CURRENCIES = ['UZS', 'USD', 'EUR', 'RUB'];
 
@@ -23,11 +26,13 @@ export type EditableDebt = {
   id: string;
   type: DebtType;
   person: string;
-  phone: string | null;
+  counterpartyId: string | null;
   currency: string;
   walletId: string | null; // boshlang'ich yozuv hamyoni; null — hamyonsiz
   dueDate: string | null; // ISO
   description: string | null;
+  amount: number;
+  paid: number; // allaqachon qaytarilgan — summa undan kam bo'lolmaydi
 };
 
 function SubmitButton() {
@@ -41,8 +46,11 @@ function SubmitButton() {
   );
 }
 
-export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: EditableDebt }) {
+export function DebtDialog({
+  wallets, debt, counterparties,
+}: { wallets: Wallet[]; debt?: EditableDebt; counterparties: CounterpartyOption[] }) {
   const t = useTranslations('debts');
+  const locale = useLocale();
   const isEdit = !!debt;
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<DebtType>('LENT');
@@ -114,20 +122,26 @@ export function DebtDialog({ wallets, debt }: { wallets: Wallet[]; debt?: Editab
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* Kim bilan — "Odamlar" ro'yxatidan; yo'q bo'lsa "+" bilan shu yerning o'zida qo'shiladi */}
+          <CounterpartyPicker
+            key={open ? 'open' : 'closed'}
+            id={isEdit ? `debt-person-${debt.id}` : 'debt-person'}
+            options={counterparties}
+            defaultValue={debt?.counterpartyId}
+            label={isEdit ? t('personWith') : type === 'LENT' ? t('personTo') : t('personFrom')}
+          />
+
+          {isEdit && (
             <div className="space-y-2">
-              <Label htmlFor="debt-person">
-                {isEdit
-                  ? t('personWith')
-                  : type === 'LENT' ? t('personTo') : t('personFrom')}
-              </Label>
-              <Input id="debt-person" name="person" placeholder={t('personPlaceholder')} defaultValue={debt?.person} required />
+              <Label htmlFor="debt-edit-amount">{t('amount')} ({debt.currency})</Label>
+              <AmountInput id="debt-edit-amount" name="amount" defaultValue={debt.amount} required />
+              <p className="text-xs text-muted-foreground">
+                {debt.paid > 0
+                  ? t('editAmountHintPaid', { paid: formatMoney(debt.paid, debt.currency, locale) })
+                  : t('editAmountHint')}
+              </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="debt-phone">{t('phone')}</Label>
-              <Input id="debt-phone" name="phone" type="tel" placeholder="+998..." defaultValue={debt?.phone ?? ''} />
-            </div>
-          </div>
+          )}
 
           {isEdit && (
             <div className="space-y-2">

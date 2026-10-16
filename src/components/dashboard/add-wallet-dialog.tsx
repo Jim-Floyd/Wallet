@@ -109,13 +109,16 @@ export function AddWalletDialog() {
             </div>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor="wallet-balance">{t('initialBalance', { currency })}</Label>
+              <Label htmlFor="wallet-balance">
+                {t(kind === 'INVESTMENT' ? 'initialInvested' : 'initialBalance', { currency })}
+              </Label>
               <AmountInput
                 id="wallet-balance"
                 name="balance"
                 placeholder="0"
                 defaultValue={0}
               />
+              {kind === 'INVESTMENT' && <p className="text-xs text-muted-foreground">{t('initialInvestedHint')}</p>}
             </div>
           )}
 

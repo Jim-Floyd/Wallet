@@ -104,6 +104,8 @@ export default async function TransactionsPage({
     }),
   ]);
 
+  const counterpartyOptions = (await prisma.counterparty.findMany({ where: { userId: user.id }, orderBy: { name: 'asc' } }))
+    .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
   const walletList = wallets.map(walletOption);
   const categoryList = categories.map(c => ({ id: c.id, name: c.name, icon: c.icon }));
   const categoryIcons = Object.fromEntries(categories.map(c => [c.name, c.icon]));
@@ -200,6 +202,8 @@ export default async function TransactionsPage({
     }
   }
 
+  const rowNumber = new Map(transactions.map((tx, i) => [tx.id, skip + i + 1]));
+
   function renderRow(tx: (typeof transactions)[number]) {
     const isIncome = tx.type === 'INCOME' || tx.type === 'DEBT_IN';
     const isTransfer = tx.type === 'TRANSFER';
@@ -209,6 +213,7 @@ export default async function TransactionsPage({
     return (
       <div key={tx.id} className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
+          <span className="min-w-[1.25rem] shrink-0 text-right text-xs tabular-nums text-muted-foreground">{rowNumber.get(tx.id)}</span>
           <TxIcon type={tx.type} category={tx.category} isDebt={tx.debt != null} categoryIcons={categoryIcons} />
           <div>
             <p className="text-sm font-medium">
@@ -273,7 +278,7 @@ export default async function TransactionsPage({
           <div className="flex items-center gap-2">
             <ImportDialog locale={locale} />
             <ExportButton locale={locale} filters={filters} />
-            <TransactionDialog wallets={walletList} savedCategories={categoryList} openDebts={openDebtOptions(debtRows)} />
+            <TransactionDialog wallets={walletList} savedCategories={categoryList} openDebts={openDebtOptions(debtRows)} counterparties={counterpartyOptions} />
           </div>
         </div>
 

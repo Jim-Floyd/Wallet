@@ -85,7 +85,7 @@ export default async function DashboardPage({
     prisma.transaction.findMany({
       where: { userId: user.id, date: { gte: monthFrom, lt: monthTo } },
       orderBy: { date: 'desc' },
-      take: 5,
+      take: 10,
       include: {
         wallet: { select: { name: true, currency: true } },
         toWallet: { select: { name: true, currency: true } },
@@ -122,6 +122,8 @@ export default async function DashboardPage({
     .filter(w => w.createdAt < monthTo || activeByMonthEnd.has(w.id))
     .map(w => ({ ...w, balance: Number(w.balance) - (laterEffect.get(w.id) ?? 0) }));
 
+  const counterpartyOptions = (await prisma.counterparty.findMany({ where: { userId: user.id }, orderBy: { name: 'asc' } }))
+    .map(c => ({ id: c.id, name: c.name, phone: c.phone }));
   const walletList = wallets.map(walletOption);
   const categoryList = categories.map(c => ({ id: c.id, name: c.name, icon: c.icon }));
   const categoryIcons = Object.fromEntries(categories.map(c => [c.name, c.icon]));
@@ -151,11 +153,19 @@ export default async function DashboardPage({
     })
     .slice(0, 5);
 
-  const totalBalanceUZS = shownWallets
+  // Umumiy balans — faqat pul (investitsiyalar likvid emas, alohida qatorda; joriy oyda joriy qiymat bilan)
+  const cashWallets = shownWallets.filter(w => w.kind !== 'INVESTMENT');
+  const investmentTotals = shownWallets
+    .filter(w => w.kind === 'INVESTMENT')
+    .reduce<Record<string, number>>((acc, w) => {
+      acc[w.currency] = (acc[w.currency] ?? 0) + Number(w.balance) + (isPastMonth ? 0 : Number(w.valuationGain));
+      return acc;
+    }, {});
+  const totalBalanceUZS = cashWallets
     .filter(w => w.currency === 'UZS')
     .reduce((sum, w) => sum + Number(w.balance), 0);
 
-  const otherCurrencies = shownWallets
+  const otherCurrencies = cashWallets
     .filter(w => w.currency !== 'UZS')
     .reduce<Record<string, number>>((acc, w) => {
       acc[w.currency] = (acc[w.currency] ?? 0) + Number(w.balance);
@@ -235,6 +245,11 @@ export default async function DashboardPage({
                 {bal < 0 ? '-' : '+'} {formatAmount(bal, cur)}
               </div>
             ))}
+            {Object.entries(investmentTotals).map(([cur, v]) => (
+              <div key={cur} className="text-xs text-muted-foreground">
+                {t('investmentsLine', { amount: formatMoneySigned(v, cur, locale) })}
+              </div>
+            ))}
             <p className="text-xs text-muted-foreground mt-1">
               {t('walletCount', { count: shownWallets.length })}
               {isPastMonth && ` · ${t('asOf', { date: asOfLabel })}`}
@@ -307,13 +322,14 @@ export default async function DashboardPage({
             </CardTitle>
             {isPastMonth && <p className="text-xs text-muted-foreground">{t('asOf', { date: asOfLabel })}</p>}
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 md:max-h-[26rem] md:overflow-y-auto md:[scrollbar-width:thin]">
             {shownWallets.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('noWallets')}</p>
             ) : (
-              shownWallets.map((wallet) => (
+              shownWallets.map((wallet, index) => (
                 <div key={wallet.id} className="flex items-center justify-between gap-2 rounded-lg border p-3">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="min-w-[1.25rem] shrink-0 text-right text-xs tabular-nums text-muted-foreground">{index + 1}</span>
                     <WalletAvatar icon={wallet.icon} color={wallet.color} currency={wallet.currency} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{wallet.name} <span className="text-muted-foreground font-normal">({wallet.currency})</span></p>
@@ -438,20 +454,21 @@ export default async function DashboardPage({
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>{t('recentTransactions')}</span>
-              <TransactionDialog wallets={walletList} savedCategories={categoryList} openDebts={openDebtOptions(debtRows)} />
+              <TransactionDialog wallets={walletList} savedCategories={categoryList} openDebts={openDebtOptions(debtRows)} counterparties={counterpartyOptions} />
             </CardTitle>
             <p className="text-xs text-muted-foreground">{monthLabel}</p>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 md:max-h-[34rem] md:overflow-y-auto md:[scrollbar-width:thin]">
             {recentTransactions.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('noTransactions')}</p>
             ) : (
-              recentTransactions.map((tx) => {
+              recentTransactions.map((tx, index) => {
                 const isIncome = tx.type === 'INCOME' || tx.type === 'DEBT_IN';
                 const isTransfer = tx.type === 'TRANSFER';
                 return (
                   <div key={tx.id} className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-3">
+                      <span className="min-w-[1.25rem] shrink-0 text-right text-xs tabular-nums text-muted-foreground">{index + 1}</span>
                       <TxIcon
                         type={tx.type}
                         category={tx.category}
@@ -494,6 +511,16 @@ export default async function DashboardPage({
               })
             )}
           </CardContent>
+          {recentTransactions.length > 0 && (
+            <div className="border-t px-6 py-3">
+              <Link
+                href={transactionsHref(locale, { from: firstDay, to: lastDay })}
+                className="block text-center text-xs text-muted-foreground hover:text-foreground"
+              >
+                {t('seeAllTransactions')} →
+              </Link>
+            </div>
+          )}
         </Card>
       </div>
     </div>

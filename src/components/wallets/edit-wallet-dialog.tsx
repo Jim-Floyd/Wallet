@@ -105,7 +105,7 @@ export function EditWalletDialog({
           {canEditOpening && (
             <div className="space-y-2">
               <Label htmlFor="edit-wallet-opening">
-                {t(isCredit ? 'openingDebt' : 'initialBalance', { currency: wallet.currency })}
+                {t(isCredit ? 'openingDebt' : kind === 'INVESTMENT' ? 'initialInvested' : 'initialBalance', { currency: wallet.currency })}
               </Label>
               <AmountInput
                 key={kind}

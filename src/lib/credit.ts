@@ -1,9 +1,10 @@
 type Amount = number | { toString(): string };
 
-export type WalletKindValue = 'DEBIT' | 'CREDIT';
+// INVESTMENT — investitsiya (depozit, mol boqish...): balans = hisobdagi qiymat, joriy qiymat = balans + valuationGain
+export type WalletKindValue = 'DEBIT' | 'CREDIT' | 'INVESTMENT';
 
 export function parseWalletKind(value: FormDataEntryValue | null): WalletKindValue {
-  return value === 'CREDIT' ? 'CREDIT' : 'DEBIT';
+  return value === 'CREDIT' || value === 'INVESTMENT' ? value : 'DEBIT';
 }
 
 // Kredit hamyon holati: qarz = manfiy qoldiq, mavjud = limit + qoldiq (limitdan oshsa manfiy).

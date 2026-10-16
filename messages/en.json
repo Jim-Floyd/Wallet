@@ -76,6 +76,8 @@
     "agreeTerms": "By continuing, you agree to our terms of service"
   },
   "dashboard": {
+    "seeAllTransactions": "All transactions this month",
+    "investmentsLine": "Investments: {amount}",
     "title": "Dashboard",
     "totalBalance": "Total Balance",
     "monthlyIncome": "Monthly Income",
@@ -159,6 +161,14 @@
     "empty": "No transactions yet"
   },
   "wallets": {
+    "initialInvested": "Already invested ({currency})",
+    "initialInvestedHint": "If the investment already exists — how much you have put in. If new — 0, then add with \"Invest\"",
+    "invested": "Invested",
+    "investmentResult": "Result",
+    "earnedPart": "Income received",
+    "revaluationPart": "Revaluation",
+    "valuedAt": "Valued: {date}",
+    "contribute": "Invest",
     "title": "Wallets",
     "uzcard": "UzCard",
     "humo": "Humo",
@@ -175,10 +185,12 @@
     "initialBalance": "Opening balance ({currency})",
     "kind": "Type",
     "kinds": {
+      "INVESTMENT": "Investment",
       "DEBIT": "Debit",
       "CREDIT": "Credit"
     },
     "kindHints": {
+      "INVESTMENT": "Deposit, stocks, business share, livestock... Putting money in is a transfer (not an expense); income and profit on sale count as income",
       "DEBIT": "Your own money: cash, debit card, savings",
       "CREDIT": "Credit card or credit line: the balance goes below 0, a negative balance is what you owe the bank"
     },
@@ -379,6 +391,8 @@
     "icon": "Icon"
   },
   "defaultCategories": {
+    "investmentIncome": "Investment income",
+    "investmentLoss": "Investment loss",
     "salary": "Salary",
     "bonus": "Bonus",
     "freelance": "Freelance",
@@ -403,6 +417,22 @@
     "RUB": "Ruble"
   },
   "debts": {
+    "openDebtsCount": "{count, plural, one {# open debt} other {# open debts}}",
+    "tabPeople": "Counterparties ({count})",
+    "peopleTitle": "Counterparties",
+    "peopleHint": "If a counterparty was entered twice (e.g. in Latin and Cyrillic), merge them into one",
+    "peopleDebts": "{count, plural, one {# debt} other {# debts}}, {open} open",
+    "noPeople": "No counterparties yet. Add them with \"+\" when creating a debt",
+    "deletePersonTitle": "Delete counterparty",
+    "deletePersonDescription": "\"{name}\" will be removed from the list. They have no debts",
+    "creditCardsTitle": "Credit cards",
+    "creditCardsHint": "A card's negative balance is what you owe the bank. Paying it is a transfer to the card",
+    "cardDebt": "Owed: {amount}",
+    "noCardDebt": "Nothing owed",
+    "payCard": "Pay",
+    "plusCards": "+ credit cards: {amount}",
+    "editAmountHint": "If the amount changes, the original entry and the wallet balance are adjusted automatically",
+    "editAmountHintPaid": "{paid} has already been repaid — the amount cannot be lower. The wallet balance is adjusted automatically",
     "title": "Debts",
     "add": "Add debt",
     "newTitle": "New debt",
@@ -479,6 +509,11 @@
     "noDebtsYet": "No debts recorded yet"
   },
   "errors": {
+    "counterpartyExists": "\"{name}\" is already in the list",
+    "selectPerson": "Select a counterparty",
+    "counterpartyHasDebts": "This counterparty has {count} debt(s) — merge them with another instead of deleting",
+    "debtAmountBelowPaid": "{amount} {currency} of this debt has already been repaid — the amount cannot be lower",
+    "invalidShare": "The sold share must be above 0 and at most 100%",
     "requiredTxFields": "Wallet, type and amount are required",
     "walletNotFound": "Wallet not found",
     "selectTargetWallet": "Select the receiving wallet",
@@ -537,6 +572,8 @@
     }
   },
   "pnl": {
+    "investments": "Investments",
+    "investmentRevaluation": "Investment revaluation",
     "title": "Balance & P&L",
     "empty": "No activity this month",
     "pnlFor": "Profit & loss · {currency}",
@@ -710,5 +747,47 @@
     "category": "Category",
     "perMonthAvg": "Avg per month",
     "periodTotal": "Total"
+  },
+  "investments": {
+    "income": "Income",
+    "incomeTitle": "{name}: income",
+    "incomeHint": "Profit from the investment — counts as income for the month",
+    "incomeWhere": "Where to",
+    "keepInside": "Keep in {name} (reinvest)",
+    "amount": "Amount",
+    "date": "Date",
+    "note": "Note (optional)",
+    "notePlaceholder": "Additional details...",
+    "revalue": "Value",
+    "revalueTitle": "{name}: current value",
+    "revalueHint": "What is this investment worth now? Book value: {book}. Not counted as income",
+    "currentValue": "Current value",
+    "revaluation": "Revaluation",
+    "sell": "Sell",
+    "sellTitle": "{name}: sell / withdraw",
+    "sellHint": "The money goes to the chosen wallet. The cost part is returned; anything above is income, below is a loss",
+    "received": "Amount received",
+    "share": "Sold %",
+    "sellTo": "To wallet",
+    "noTargetWallet": "No other wallet in {currency}",
+    "principalBack": "Cost returned",
+    "profit": "Profit (income)",
+    "loss": "Loss"
+  },
+  "counterparties": {
+    "add": "Add counterparty",
+    "newTitle": "New counterparty",
+    "editTitle": "Edit counterparty",
+    "editHint": "Renaming also updates the name on all their debts",
+    "name": "Name",
+    "namePlaceholder": "e.g. Ali",
+    "phone": "Phone (optional)",
+    "note": "Note (optional)",
+    "select": "Select",
+    "emptyHint": "The list is empty — add the first counterparty with \"+\"",
+    "mergeTitle": "Merge {name}",
+    "mergeHint": "All of {name}'s debts move to the selected counterparty and this entry is removed. Use it when one counterparty was entered twice",
+    "mergeInto": "Merge into",
+    "merge": "Merge"
   }
 }

@@ -23,8 +23,8 @@ export function WalletKindFields({
       <input type="hidden" name="kind" value={kind} />
       <div className="space-y-2">
         <Label>{t('kind')}</Label>
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-          {(['DEBIT', 'CREDIT'] as const).map((value) => (
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+          {(['DEBIT', 'CREDIT', 'INVESTMENT'] as const).map((value) => (
             <button
               key={value}
               type="button"

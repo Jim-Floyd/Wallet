@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { addTransaction, updateTransaction, type TransactionState } from '@/lib/actions/transaction';
 import { addDebt, addDebtPayment, type DebtState } from '@/lib/actions/debt';
 import type { OpenDebtOption } from '@/lib/debt';
+import type { CounterpartyOption } from '@/lib/counterparty';
+import { CounterpartyPicker } from '@/components/counterparties/counterparty-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AmountInput } from '@/components/amount-input';
@@ -60,11 +62,18 @@ export function TransactionDialog({
   savedCategories,
   transaction,
   openDebts = [],
+  counterparties = [],
+  preset,
+  triggerLabel,
 }: {
   wallets: Wallet[];
   savedCategories: Category[];
   transaction?: EditableTransaction;
   openDebts?: OpenDebtOption[];
+  counterparties?: CounterpartyOption[];
+  // Oldindan to'ldirish (masalan, investitsiyaga "Kiritish": o'tkazma shu hamyonga) va matnli tugma
+  preset?: { type: TxType; toWalletId?: string };
+  triggerLabel?: string;
 }) {
   const t = useTranslations('transactions');
   const tc = useTranslations('common');
@@ -72,12 +81,14 @@ export function TransactionDialog({
   const td = useTranslations('debts');
   const locale = useLocale();
   const isEdit = !!transaction;
-  const initialWalletId = transaction?.walletId ?? wallets[0]?.id ?? '';
+  const initialWalletId = transaction?.walletId
+    ?? (preset?.toWalletId ? wallets.find(w => w.id !== preset.toWalletId)?.id : wallets[0]?.id) ?? '';
   const initialToWalletId =
-    transaction?.toWalletId ?? wallets.find(w => w.id !== initialWalletId)?.id ?? initialWalletId;
+    transaction?.toWalletId ?? preset?.toWalletId ?? wallets.find(w => w.id !== initialWalletId)?.id ?? initialWalletId;
+  const initialType: FormType = transaction?.type ?? preset?.type ?? 'EXPENSE';
 
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<FormType>(transaction?.type ?? 'EXPENSE');
+  const [type, setType] = useState<FormType>(initialType);
   const [debtMode, setDebtMode] = useState<DebtMode>('LENT');
   const [debtId, setDebtId] = useState(openDebts[0]?.id ?? '');
   const [walletId, setWalletId] = useState(initialWalletId);
@@ -166,7 +177,7 @@ export function TransactionDialog({
   function handleOpenChange(next: boolean) {
     if (next) {
       // Har ochilganda boshlang'ich qiymatlarga qaytarish
-      setType(transaction?.type ?? 'EXPENSE');
+      setType(initialType);
       setDebtMode('LENT');
       setDebtId(openDebts[0]?.id ?? '');
       setWalletId(initialWalletId);
@@ -196,8 +207,12 @@ export function TransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant="ghost" size="icon" className="h-7 w-7" />}>
-        {isEdit ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-4 w-4" />}
+      <DialogTrigger
+        render={triggerLabel
+          ? <Button variant="outline" size="sm" className="h-7 text-xs" />
+          : <Button variant="ghost" size="icon" className="h-7 w-7" />}
+      >
+        {triggerLabel ?? (isEdit ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-4 w-4" />)}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -249,17 +264,13 @@ export function TransactionDialog({
             </div>
           )}
 
+          {/* Kim bilan — "Odamlar" ro'yxatidan tanlanadi, yo'q bo'lsa "+" bilan qo'shiladi */}
           {isDebt && !isRepay && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="tx-person">{debtMode === 'LENT' ? td('personTo') : td('personFrom')}</Label>
-                <Input id="tx-person" name="person" placeholder={td('personPlaceholder')} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tx-phone">{td('phone')}</Label>
-                <Input id="tx-phone" name="phone" type="tel" placeholder="+998..." />
-              </div>
-            </div>
+            <CounterpartyPicker
+              id="tx-person"
+              options={counterparties}
+              label={debtMode === 'LENT' ? td('personTo') : td('personFrom')}
+            />
           )}
 
           {isRepay && (

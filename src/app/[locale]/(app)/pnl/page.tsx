@@ -49,7 +49,7 @@ export default async function PnlPage({
     prisma.wallet.findMany({
       where: { userId: user.id },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-      select: { id: true, name: true, currency: true, balance: true, kind: true, createdAt: true },
+      select: { id: true, name: true, currency: true, balance: true, kind: true, createdAt: true, valuationGain: true },
     }),
     // Barcha davr: oy oqimlari, oy boshi/oxiri qoldig'i, dinamika va balansdagi ustav kapitali/taqsimlanmagan foyda uchun
     prisma.transaction.findMany({
@@ -145,15 +145,24 @@ export default async function PnlPage({
   const sheetWalletIds = new Set(sheetWallets.map(w => w.id));
 
   type Line = { label: string; amount: number; credit?: boolean };
-  type Sheet = { cash: Line[]; receivables: Line[]; payables: Line[]; overdrawn: Line[] };
+  // investments — investitsiya hamyonlari joriy qiymatda (hisobdagi + qayta baholash); qayta baholash faqat
+  // joriy oy balansida (tarixiy baholar saqlanmaydi), investBook — ustav hisobi uchun hisobdagi qiymat
+  type Sheet = { cash: Line[]; investments: Line[]; receivables: Line[]; payables: Line[]; overdrawn: Line[]; investBook: number; revaluation: number };
   const sheets = new Map<string, Sheet>();
   const sheet = (cur: string) => {
-    if (!sheets.has(cur)) sheets.set(cur, { cash: [], receivables: [], payables: [], overdrawn: [] });
+    if (!sheets.has(cur)) sheets.set(cur, { cash: [], investments: [], receivables: [], payables: [], overdrawn: [], investBook: 0, revaluation: 0 });
     return sheets.get(cur)!;
   };
+  const sheetIsToday = end.getTime() > Date.now();
   for (const w of sheetWallets) {
     const balance = w.balanceAtEnd;
-    if (balance < 0) sheet(w.currency).overdrawn.push({ label: w.name, amount: -balance, credit: w.kind === 'CREDIT' });
+    if (w.kind === 'INVESTMENT' && balance >= 0) {
+      const gain = sheetIsToday ? Number(w.valuationGain) : 0;
+      const s = sheet(w.currency);
+      s.investments.push({ label: w.name, amount: balance + gain });
+      s.investBook += balance;
+      s.revaluation += gain;
+    } else if (balance < 0) sheet(w.currency).overdrawn.push({ label: w.name, amount: -balance, credit: w.kind === 'CREDIT' });
     else sheet(w.currency).cash.push({ label: w.name, amount: balance });
   }
   // Qarz oy oxirigacha ochilgan bo'lsa; qoldig'i — oy oxirigacha qaytarilganlar ayirilgan holda
@@ -335,7 +344,7 @@ export default async function PnlPage({
             {Array.from(sheets)
               .sort((a, b) => (CURRENCY_RANK[a[0]] ?? 9) - (CURRENCY_RANK[b[0]] ?? 9))
               .map(([cur, s]) => {
-                const assets = sum(s.cash) + sum(s.receivables);
+                const assets = sum(s.cash) + sum(s.investments) + sum(s.receivables);
                 const obligationLines = [
                   ...s.payables,
                   ...s.overdrawn.map(l => ({ ...l, label: `${l.label} (${t(l.credit ? 'creditWallet' : 'overdrawnWallet')})` })),
@@ -343,12 +352,13 @@ export default async function PnlPage({
                 const obligations = sum(obligationLines);
                 const equity = assets - obligations;
                 const c = capital.get(cur) ?? { effects: 0, retained: 0, fx: 0 };
-                const shareCapital = sum(s.cash) - sum(s.overdrawn) - c.effects;
-                const other = equity - shareCapital - c.retained - c.fx;
+                const shareCapital = sum(s.cash) + s.investBook - sum(s.overdrawn) - c.effects;
+                const other = equity - shareCapital - c.retained - c.fx - s.revaluation;
                 const equityLines: Line[] = [
                   { label: t('shareCapital'), amount: shareCapital },
                   { label: t('retainedEarnings'), amount: c.retained },
                   ...(Math.abs(c.fx) >= 0.005 ? [{ label: t('fxDifference'), amount: c.fx }] : []),
+                  ...(Math.abs(s.revaluation) >= 0.005 ? [{ label: t('investmentRevaluation'), amount: s.revaluation }] : []),
                   ...(Math.abs(other) >= 0.005 ? [{ label: t('otherAdjustments'), amount: other }] : []),
                 ];
                 const group = (title: string, lines: Line[], subtotal: number) => lines.length > 0 && (
@@ -375,8 +385,9 @@ export default async function PnlPage({
                           <span className="tabular-nums">{fmt(assets, cur)}</span>
                         </div>
                         {group(t('assetWallets'), s.cash, sum(s.cash))}
+                        {group(t('investments'), s.investments, sum(s.investments))}
                         {group(t('receivables'), s.receivables, sum(s.receivables))}
-                        {s.cash.length + s.receivables.length === 0 && <p className="text-muted-foreground">{t('none')}</p>}
+                        {s.cash.length + s.investments.length + s.receivables.length === 0 && <p className="text-muted-foreground">{t('none')}</p>}
                       </div>
                       <div className="space-y-3 rounded-lg border p-3">
                         <div className="flex justify-between font-semibold">

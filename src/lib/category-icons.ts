@@ -25,9 +25,12 @@ export const DEFAULT_CATEGORIES: { name: string; id: string; icon: string }[] = 
   { name: "Ko'ngil ochar", id: 'entertainment', icon: 'party-popper' },
   { name: 'Restoran', id: 'restaurant', icon: 'utensils' },
   { name: 'Sport', id: 'sport', icon: 'dumbbell' },
+  // Investitsiya hisobi (src/lib/investment.ts): daromad — standart daromad ro'yxatida, zarar — faqat sotishda yoziladi
+  { name: 'Investitsiya daromadi', id: 'investmentIncome', icon: 'trending-up' },
+  { name: 'Investitsiya zarari', id: 'investmentLoss', icon: 'receipt' },
 ];
 
-export const INCOME_DEFAULTS = ['Maosh', 'Bonus', 'Freelance', 'Biznes', "Sovg'a", 'Boshqa'];
+export const INCOME_DEFAULTS = ['Maosh', 'Bonus', 'Freelance', 'Biznes', "Sovg'a", 'Investitsiya daromadi', 'Boshqa'];
 export const EXPENSE_DEFAULTS = [
   'Oziq-ovqat', 'Transport', 'Uy-joy', 'Kommunal', 'Kiyim', "Sog'liq", "Ta'lim", "Ko'ngil ochar", 'Restoran', 'Sport', 'Boshqa',
 ];

@@ -7,6 +7,20 @@ import { getTranslations } from 'next-intl/server';
 import { balanceEffects, balanceUpdates, reverseEffects } from '@/lib/balance';
 import { parseFormDate } from '@/lib/form-date';
 import { debtProgress, initialTxType, repayTxType } from '@/lib/debt';
+import { cleanName } from '@/lib/counterparty';
+
+// Kim bilan: "Odamlar" ro'yxatidan tanlangan (counterpartyId) yoki eski usulda matn (person) — matn bo'lsa
+// ro'yxatdan katta-kichik harfsiz qidiriladi, topilmasa yaratiladi. Qarzdagi person/phone — shu odamdan nusxa
+async function resolveCounterparty(userId: string, formData: FormData) {
+  const id = (formData.get('counterpartyId') as string) || '';
+  if (id) return prisma.counterparty.findFirst({ where: { id, userId } });
+  const name = cleanName((formData.get('person') as string) ?? '');
+  if (!name) return null;
+  const existing = await prisma.counterparty.findFirst({ where: { userId, name: { equals: name, mode: 'insensitive' } } });
+  if (existing) return existing;
+  const phone = ((formData.get('phone') as string) ?? '').trim() || null;
+  return prisma.counterparty.create({ data: { userId, name, phone } });
+}
 
 export type DebtState = { error?: string; success?: boolean } | null;
 
@@ -32,14 +46,15 @@ export async function addDebt(_: DebtState, formData: FormData): Promise<DebtSta
   const t = await getTranslations('errors');
 
   const type = formData.get('type') as 'LENT' | 'BORROWED';
-  const person = ((formData.get('person') as string) ?? '').trim();
-  const phone = ((formData.get('phone') as string) ?? '').trim() || null;
   const amount = parseFloat(formData.get('amount') as string);
   const walletId = (formData.get('walletId') as string) || null;
   const description = ((formData.get('description') as string) ?? '').trim() || null;
 
   if (type !== 'LENT' && type !== 'BORROWED') return { error: t('selectDebtType') };
-  if (!person) return { error: t('personRequired') };
+  const counterparty = await resolveCounterparty(userId, formData);
+  if (!counterparty) return { error: t('personRequired') };
+  const person = counterparty.name;
+  const phone = counterparty.phone;
   if (!amount || isNaN(amount) || amount <= 0) return { error: t('amountPositive') };
 
   const date = parseFormDate(formData);
@@ -62,7 +77,7 @@ export async function addDebt(_: DebtState, formData: FormData): Promise<DebtSta
   await prisma.$transaction([
     prisma.debt.create({
       data: {
-        userId, type, person, phone, amount, currency, dueDate, description,
+        userId, type, person, phone, counterpartyId: counterparty.id, amount, currency, dueDate, description,
         ...(date && { date }),
         ...(walletId && {
           transactions: {
@@ -86,10 +101,12 @@ export async function updateDebt(_: DebtState, formData: FormData): Promise<Debt
   const t = await getTranslations('errors');
 
   const id = formData.get('id') as string;
-  const person = ((formData.get('person') as string) ?? '').trim();
-  const phone = ((formData.get('phone') as string) ?? '').trim() || null;
+
   const description = ((formData.get('description') as string) ?? '').trim() || null;
-  if (!person) return { error: t('personRequired') };
+  const counterparty = await resolveCounterparty(userId, formData);
+  if (!counterparty) return { error: t('personRequired') };
+  const person = counterparty.name;
+  const phone = counterparty.phone;
 
   const dueDate = parseDueDate(formData);
   if (dueDate && !(dueDate instanceof Date)) return { error: t(dueDate.error) };
@@ -97,14 +114,26 @@ export async function updateDebt(_: DebtState, formData: FormData): Promise<Debt
   const debt = await prisma.debt.findFirst({ where: { id, userId }, include: { transactions: true } });
   if (!debt) return { error: t('debtNotFound') };
 
-  // Boshlang'ich yozuv hamyonini almashtirish ('' — hamyonsiz, faqat yozuv)
+  // Summa: yuborilmasa — o'zgarmaydi. Allaqachon qaytarilgan summadan kam bo'lishi mumkin emas
+  const amountField = formData.get('amount') as string | null;
+  const newAmount = amountField ? parseFloat(amountField) : Number(debt.amount);
+  if (!newAmount || isNaN(newAmount) || newAmount <= 0) return { error: t('amountPositive') };
+  const { paid } = debtProgress(debt);
+  if (newAmount < paid - 0.001) {
+    return { error: t('debtAmountBelowPaid', { amount: paid, currency: debt.currency }) };
+  }
+  const amountChanged = Math.abs(newAmount - Number(debt.amount)) >= 0.005;
+
+  // Boshlang'ich yozuv: hamyonini almashtirish ('' — hamyonsiz, faqat yozuv) va/yoki summasini o'zgartirish.
+  // Eski ta'sir qaytariladi, yangisi qo'llanadi — hamyon balanslari doim mos qoladi
   const txType = initialTxType(debt.type);
   const initial = debt.transactions.find(t => t.type === txType) ?? null;
   const newWalletId = (formData.get('walletId') as string) || null;
+  const walletChanged = newWalletId !== (initial?.walletId ?? null);
   const walletOps = [];
 
-  if (newWalletId !== (initial?.walletId ?? null)) {
-    if (newWalletId) {
+  if (walletChanged || (amountChanged && initial)) {
+    if (newWalletId && walletChanged) {
       const wallet = await prisma.wallet.findFirst({ where: { id: newWalletId, userId } });
       if (!wallet) return { error: t('walletNotFound') };
       if (wallet.currency !== debt.currency) {
@@ -113,18 +142,18 @@ export async function updateDebt(_: DebtState, formData: FormData): Promise<Debt
     }
 
     const moved = newWalletId
-      ? balanceEffects({ type: txType, walletId: newWalletId, toWalletId: null, amount: debt.amount, toAmount: null })
+      ? balanceEffects({ type: txType, walletId: newWalletId, toWalletId: null, amount: newAmount, toAmount: null })
       : [];
     const effects = [...(initial ? reverseEffects(initial) : []), ...moved];
 
     if (initial && newWalletId) {
-      walletOps.push(prisma.transaction.update({ where: { id: initial.id }, data: { walletId: newWalletId } }));
+      walletOps.push(prisma.transaction.update({ where: { id: initial.id }, data: { walletId: newWalletId, amount: newAmount } }));
     } else if (initial) {
       walletOps.push(prisma.transaction.delete({ where: { id: initial.id } }));
     } else if (newWalletId) {
       walletOps.push(prisma.transaction.create({
         data: {
-          userId, walletId: newWalletId, debtId: id, type: txType, amount: debt.amount,
+          userId, walletId: newWalletId, debtId: id, type: txType, amount: newAmount,
           currency: debt.currency, description: debt.description, date: debt.date,
         },
       }));
@@ -133,7 +162,7 @@ export async function updateDebt(_: DebtState, formData: FormData): Promise<Debt
   }
 
   await prisma.$transaction([
-    prisma.debt.update({ where: { id }, data: { person, phone, dueDate, description } }),
+    prisma.debt.update({ where: { id }, data: { person, phone, counterpartyId: counterparty.id, dueDate, description, amount: newAmount } }),
     ...walletOps,
   ]);
 
